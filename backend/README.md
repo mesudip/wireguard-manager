@@ -34,40 +34,40 @@ API endpoint definitions using Flask Blueprints:
 ### Local Development
 
 1. Install dependencies:
-```bash
+\`\`\`bash
 pip install -r requirements.txt
-```
+\`\`\`
 
 2. Ensure WireGuard tools are installed:
-```bash
+\`\`\`bash
 # Ubuntu/Debian
 sudo apt-get install wireguard-tools
 
 # macOS
 brew install wireguard-tools
-```
+\`\`\`
 
 3. Run the server:
-```bash
+\`\`\`bash
 python app.py
-```
+\`\`\`
 
 The API will be available at `http://localhost:5000`
 
 ### Docker
 
 1. Build the image:
-```bash
+\`\`\`bash
 docker build -t wireguard-api .
-```
+\`\`\`
 
 2. Run the container:
-```bash
+\`\`\`bash
 docker run -p 5000:5000 \
   -v /etc/wireguard:/etc/wireguard \
   --cap-add=NET_ADMIN \
   wireguard-api
-```
+\`\`\`
 
 ## API Endpoints
 
@@ -77,41 +77,41 @@ docker run -p 5000:5000 \
 ### Interfaces
 - `GET /interfaces` - List all interfaces
 - `POST /interfaces` - Create a new interface
-  ```json
+  \`\`\`json
   {
     "name": "wg0",
     "address": "10.0.0.1/24",
     "listen_port": "51820"
   }
-  ```
+  \`\`\`
 - `GET /interfaces/{interface}` - Get interface details
 - `PUT /interfaces/{interface}` - Update interface
-  ```json
+  \`\`\`json
   {
     "address": "10.0.0.1/24",
     "listen_port": "51820"
   }
-  ```
+  \`\`\`
 - `DELETE /interfaces/{interface}` - Delete interface
 
 ### Peers
 - `GET /interfaces/{interface}/peers` - List all peers
 - `POST /interfaces/{interface}/peers` - Add a new peer
-  ```json
+  \`\`\`json
   {
     "name": "peer1",
     "allowed_ips": "10.0.0.2/32",
     "endpoint": "192.168.1.100:51820"
   }
-  ```
+  \`\`\`
 - `GET /interfaces/{interface}/peers/{peer_name}` - Get peer details
 - `PUT /interfaces/{interface}/peers/{peer_name}` - Update peer
-  ```json
+  \`\`\`json
   {
     "allowed_ips": "10.0.0.2/32",
     "endpoint": "192.168.1.100:51820"
   }
-  ```
+  \`\`\`
 - `DELETE /interfaces/{interface}/peers/{peer_name}` - Delete peer
 
 ### Config Management
@@ -131,14 +131,14 @@ docker run -p 5000:5000 \
 ## Configuration Structure
 
 ### Folder Structure
-```
+\`\`\`
 /etc/wireguard/
 ├── wg0/
 │   ├── wg0.conf          # Interface config (without peers)
 │   ├── peer1.conf        # Individual peer config
 │   └── peer2.conf        # Individual peer config
 └── wg0.conf              # Final merged config (after apply)
-```
+\`\`\`
 
 ### Workflow
 
@@ -164,19 +164,19 @@ The codebase uses Python's `TypedDict` for type hints throughout:
 - All function parameters and return values are typed
 - Config structures have explicit type definitions
 - Use a type checker like `mypy` to verify type correctness:
-  ```bash
+  \`\`\`bash
   mypy backend/
-  ```
+  \`\`\`
 
 ## Development
 
 ### Running Tests
-```bash
+\`\`\`bash
 # TODO: Add tests
 pytest tests/
-```
+\`\`\`
 
 ### Code Style
 Follow PEP 8 and use type hints throughout. Use `black` for formatting:
-```bash
+\`\`\`bash
 black backend/

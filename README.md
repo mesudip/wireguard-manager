@@ -24,57 +24,57 @@ A full-stack WireGuard VPN management application with a Python Flask backend an
 ### Backend Setup
 
 1. Navigate to the backend directory:
-```bash
+\`\`\`bash
 cd backend
-```
+\`\`\`
 
 2. Install dependencies:
-```bash
+\`\`\`bash
 pip install -r requirements.txt
-```
+\`\`\`
 
 3. Ensure WireGuard tools are installed:
-```bash
+\`\`\`bash
 # Ubuntu/Debian
 sudo apt-get install wireguard-tools
 
 # macOS
 brew install wireguard-tools
-```
+\`\`\`
 
 4. Run the Flask server:
-```bash
+\`\`\`bash
 python app.py
-```
+\`\`\`
 
 The API will be available at `http://localhost:5000`
 
 ### Frontend Setup
 
 1. Install dependencies:
-```bash
+\`\`\`bash
 npm install
-```
+\`\`\`
 
 2. Create environment file:
-```bash
+\`\`\`bash
 cp .env.example .env.local
-```
+\`\`\`
 
 3. Update the API URL in `.env.local`:
-```
+\`\`\`
 NEXT_PUBLIC_API_URL=http://localhost:5000
-```
+\`\`\`
 
 4. Run development server:
-```bash
+\`\`\`bash
 npm run dev
-```
+\`\`\`
 
 5. Build static site:
-```bash
+\`\`\`bash
 npm run build
-```
+\`\`\`
 
 The static files will be in the `out` directory.
 
@@ -82,36 +82,36 @@ The static files will be in the `out` directory.
 
 ### Backend
 
-```bash
+\`\`\`bash
 cd backend
 docker build -t wireguard-api .
 docker run -p 5000:5000 \
   -v /etc/wireguard:/etc/wireguard \
   --cap-add=NET_ADMIN \
   wireguard-api
-```
+\`\`\`
 
 ### Frontend
 
 The frontend builds to a static site that can be served with any web server:
 
-```bash
+\`\`\`bash
 npm run build
 # Serve the 'out' directory with nginx, Apache, or any static file server
-```
+\`\`\`
 
 ## Configuration Structure
 
 WireGuard configs are organized as follows:
 
-```
+\`\`\`
 /etc/wireguard/
 ├── wg0/                    # Interface folder
 │   ├── wg0.conf           # Interface config (no peers)
 │   ├── peer1.conf         # Individual peer config
 │   └── peer2.conf         # Individual peer config
 └── wg0.conf               # Final generated config (with all peers)
-```
+\`\`\`
 
 ## API Endpoints
 
@@ -172,6 +172,6 @@ The project uses the Mono design system with these characteristics:
 ## License
 
 MIT
-```
+\`\`\`
 
-```json file="" isHidden
+\`\`\`json file="" isHidden
