@@ -47,8 +47,22 @@ def health_check():
 
 def main():
     """Main entry point for console script."""
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    # This allows the server to accept connections on both IPv4 and IPv6
+    import socket
+    
+    # Try to bind to IPv6 first (which typically handles IPv4 too on dual-stack)
+    try:
+        app.run(host='::', port=5000, debug=False)
+    except (OSError, socket.error):
+        # Fallback to IPv4 if IPv6 not available
+        print("Warning: IPv6 not available, falling back to IPv4 only")
+        app.run(host='0.0.0.0', port=5000, debug=False)
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    import socket
+    try:
+        app.run(host='::', port=5000, debug=True)
+    except (OSError, socket.error):
+        print("Warning: IPv6 not available, falling back to IPv4 only")
+        app.run(host='0.0.0.0', port=5000, debug=True)
