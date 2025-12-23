@@ -1,5 +1,7 @@
 import subprocess
 from typing import Tuple
+from utils.command import run_command
+from exceptions.wireguard_exceptions import CommandNotFoundException
 
 
 def generate_keys() -> Tuple[str, str]:
@@ -8,12 +10,22 @@ def generate_keys() -> Tuple[str, str]:
     
     Returns:
         Tuple of (private_key, public_key)
+        
+    Raises:
+        CommandNotFoundException: If wg command is not found
     """
-    private_key = subprocess.check_output(["wg", "genkey"]).decode().strip()
-    public_key = subprocess.check_output(
-        ["wg", "pubkey"], input=private_key.encode()
-    ).decode().strip()
-    return private_key, public_key
+    try:
+        result = run_command(["wg", "genkey"])
+        private_key = result.stdout.decode().strip()
+        
+        result = run_command(["wg", "pubkey"], input_data=private_key.encode())
+        public_key = result.stdout.decode().strip()
+        
+        return private_key, public_key
+    except Exception as e:
+        if isinstance(e, CommandNotFoundException):
+            raise
+        raise RuntimeError(f"Failed to generate keys: {str(e)}")
 
 
 def get_public_key(private_key: str) -> str:
@@ -27,8 +39,9 @@ def get_public_key(private_key: str) -> str:
         Public key string
     """
     try:
-        return subprocess.check_output(
-            ["wg", "pubkey"], input=private_key.encode()
-        ).decode().strip()
+        result = run_command(["wg", "pubkey"], input_data=private_key.encode())
+        return result.stdout.decode().strip()
     except subprocess.CalledProcessError:
+        return ""
+    except Exception:
         return ""

@@ -5,6 +5,8 @@ import difflib
 from typing import List, Dict, Any, Optional
 from models.types import InterfaceState, PeerStateInfo, WireGuardConfig
 from services.config import parse_config
+from utils.command import run_command
+from exceptions.wireguard_exceptions import StateException, InterfaceNotFoundException
 
 
 class StateService:
@@ -14,10 +16,8 @@ class StateService:
     def get_state(self, interface: str) -> InterfaceState:
         """Get current state (equivalent to wg show)."""
         try:
-            output = subprocess.check_output(
-                ["wg", "show", interface], 
-                stderr=subprocess.STDOUT
-            ).decode()
+            result = run_command(["wg", "show", interface])
+            output = result.stdout.decode()
             
             # Parse wg show output
             state: InterfaceState = {"interface": interface, "peers": []}
@@ -42,7 +42,12 @@ class StateService:
             
             return state
         except subprocess.CalledProcessError as e:
-            raise RuntimeError(f"Interface not active or not found: {e.output.decode()}")
+            error_msg = e.stderr.decode() if e.stderr else str(e)
+            if "does not exist" in error_msg.lower() or "no such device" in error_msg.lower():
+                raise InterfaceNotFoundException(interface)
+            raise StateException(interface, error_msg)
+        except Exception as e:
+            raise StateException(interface, str(e))
     
     def get_state_diff(self, interface: str) -> str:
         """Get diff between wg command output and current conf file."""
@@ -57,10 +62,8 @@ class StateService:
         
         # Get current state
         try:
-            state_output = subprocess.check_output(
-                ["wg", "show", interface], 
-                stderr=subprocess.STDOUT
-            ).decode()
+            result = run_command(["wg", "show", interface])
+            state_output = result.stdout.decode()
             
             config_lines = json.dumps(config, indent=2, sort_keys=True).splitlines()
             state_lines = state_output.splitlines()
@@ -74,4 +77,9 @@ class StateService:
             
             return '\n'.join(diff)
         except subprocess.CalledProcessError as e:
-            raise RuntimeError(f"Interface not active: {e.output.decode()}")
+            error_msg = e.stderr.decode() if e.stderr else str(e)
+            if "does not exist" in error_msg.lower() or "no such device" in error_msg.lower():
+                raise InterfaceNotFoundException(interface)
+            raise StateException(interface, error_msg)
+        except Exception as e:
+            raise StateException(interface, str(e))

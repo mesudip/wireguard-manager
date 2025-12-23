@@ -1,0 +1,109 @@
+#!/bin/bash
+
+# WireGuard Manager Main Installation Script
+# This script builds the frontend and installs both frontend and backend
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Configuration
+STATIC_INSTALL_DIR="/lib/wireguard/backend"
+FRONTEND_DIST="dist"
+BACKEND_DIR="backend"
+
+# Check if running as root
+if [ "$EUID" -ne 0 ]; then 
+    echo -e "${RED}Error: This script must be run as root${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}Starting WireGuard Manager installation...${NC}"
+
+# Check if dist folder exists and is not empty
+if [ -d "$FRONTEND_DIST" ] && [ "$(ls -A $FRONTEND_DIST)" ]; then
+    echo -e "${GREEN}Found existing build in $FRONTEND_DIST directory${NC}"
+else
+    echo -e "${YELLOW}No build found. Building frontend...${NC}"
+    
+    # Check if Node.js is installed
+    if ! command -v node &> /dev/null; then
+        echo -e "${RED}Error: Node.js is not installed. Please install Node.js first.${NC}"
+        echo "You can install Node.js from: https://nodejs.org/"
+        exit 1
+    fi
+    
+    # Check if npm is installed
+    if ! command -v npm &> /dev/null; then
+        echo -e "${RED}Error: npm is not installed. Please install npm first.${NC}"
+        exit 1
+    fi
+    
+    # Install dependencies
+    echo -e "${YELLOW}Installing frontend dependencies...${NC}"
+    npm install
+    
+    # Build the frontend
+    echo -e "${YELLOW}Building frontend...${NC}"
+    npm run build
+    
+    # Verify build was successful
+    if [ ! -d "$FRONTEND_DIST" ] || [ ! "$(ls -A $FRONTEND_DIST)" ]; then
+        echo -e "${RED}Error: Build failed. $FRONTEND_DIST directory is empty or does not exist.${NC}"
+        exit 1
+    fi
+    
+    echo -e "${GREEN}Frontend build completed successfully${NC}"
+fi
+
+# Create static files directory
+echo -e "${YELLOW}Creating static files directory: $STATIC_INSTALL_DIR${NC}"
+mkdir -p $STATIC_INSTALL_DIR
+
+# Copy built files to static directory
+echo -e "${YELLOW}Installing static files...${NC}"
+rm -rf $STATIC_INSTALL_DIR/*
+cp -r $FRONTEND_DIST/* $STATIC_INSTALL_DIR/
+
+# Set proper permissions
+chown -R root:root $STATIC_INSTALL_DIR
+chmod -R 755 $STATIC_INSTALL_DIR
+
+echo -e "${GREEN}Static files installed to $STATIC_INSTALL_DIR${NC}"
+
+# Install backend
+echo -e "${YELLOW}Installing backend...${NC}"
+if [ -d "$BACKEND_DIR" ]; then
+    cd $BACKEND_DIR
+    if [ -f "install.sh" ]; then
+        chmod +x install.sh
+        ./install.sh
+    else
+        echo -e "${RED}Error: Backend install script not found${NC}"
+        exit 1
+    fi
+else
+    echo -e "${RED}Error: Backend directory not found${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}================================================${NC}"
+echo -e "${GREEN}✓ WireGuard Manager installation complete!${NC}"
+echo -e "${GREEN}================================================${NC}"
+echo ""
+echo "The frontend has been installed to: $STATIC_INSTALL_DIR"
+echo "The backend is serving both API and static files on http://localhost:5000"
+echo ""
+echo "Next steps:"
+echo "  1. Configure the backend: nano /etc/wireguard/backend.conf"
+echo "  2. Restart the service: systemctl restart wireguard-manager"
+echo "  3. Access the web interface: http://your-server-ip:5000"
+echo ""
+echo "Useful commands:"
+echo "  - Check status: systemctl status wireguard-manager"
+echo "  - View logs: journalctl -u wireguard-manager -f"
+echo "  - Restart: systemctl restart wireguard-manager"

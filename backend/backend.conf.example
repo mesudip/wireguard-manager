@@ -1,0 +1,54 @@
+# WireGuard Manager Backend Configuration
+# Copy this file to /etc/wireguard/backend.conf and customize as needed
+
+[server]
+# Server host - use '::' for IPv4+IPv6, '0.0.0.0' for IPv4 only, or specific IP
+host = ::
+port = 5000
+debug = false
+
+[cors]
+# Enable CORS support
+enabled = true
+
+# CORS origins - use '*' for all origins, or comma-separated list of allowed domains
+# Examples:
+#   origins = *
+#   origins = http://localhost:3000
+#   origins = http://localhost:3000,https://example.com,https://app.example.com
+origins = *
+
+# Allowed HTTP methods
+methods = GET,POST,PUT,DELETE,OPTIONS
+
+# Allowed request headers
+allow_headers = Content-Type,Authorization
+
+# Headers to expose to the client
+expose_headers = 
+
+# Allow credentials (cookies, authorization headers)
+supports_credentials = false
+
+# Preflight request cache duration (seconds)
+max_age = 3600
+
+[wireguard]
+# Base directory for WireGuard configurations
+base_dir = /etc/wireguard
+
+[logging]
+# Logging method: 'console' (stdout) or 'directory' (file-based)
+method = console
+
+# Logging level: DEBUG, INFO, WARNING, ERROR, CRITICAL
+level = INFO
+
+# Directory for log files (required if method=directory)
+dir = /var/log/wireguard-manager
+
+# Maximum log file size in bytes (10MB default)
+max_bytes = 10485760
+
+# Number of backup log files to keep
+backup_count = 5

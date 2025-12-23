@@ -5,6 +5,10 @@ from typing import List, Optional, Dict, Any
 from models.types import WireGuardConfig, InterfaceResponse, InterfaceDetailResponse
 from services.config import parse_config, write_config
 from services.crypto import generate_keys, get_public_key
+from exceptions.wireguard_exceptions import (
+    InterfaceNotFoundException,
+    ConfigurationException
+)
 
 
 class InterfaceService:
@@ -32,7 +36,7 @@ class InterfaceService:
         interface_dir = os.path.join(self.base_dir, name)
         
         if os.path.exists(interface_dir):
-            raise ValueError("Interface already exists")
+            raise ConfigurationException(f"Interface '{name}' already exists")
         
         os.makedirs(interface_dir, exist_ok=True)
         
@@ -65,11 +69,11 @@ class InterfaceService:
         config_path = os.path.join(interface_dir, f"{name}.conf")
         
         if not os.path.exists(config_path):
-            raise FileNotFoundError("Interface not found")
+            raise InterfaceNotFoundException(name)
         
         config = parse_config(config_path)
         if not config:
-            raise ValueError("Invalid config file")
+            raise ConfigurationException(f"Invalid config file for interface '{name}'")
         
         # Get public key from private key
         private_key = config['Interface'].get('PrivateKey', '')
@@ -94,11 +98,11 @@ class InterfaceService:
         config_path = os.path.join(interface_dir, f"{name}.conf")
         
         if not os.path.exists(config_path):
-            raise FileNotFoundError("Interface not found")
+            raise InterfaceNotFoundException(name)
         
         config = parse_config(config_path)
         if not config:
-            raise ValueError("Invalid config file")
+            raise ConfigurationException(f"Invalid config file for interface '{name}'")
         
         # Update interface config
         if address is not None:
@@ -113,7 +117,7 @@ class InterfaceService:
         interface_dir = os.path.join(self.base_dir, name)
         
         if not os.path.exists(interface_dir):
-            raise FileNotFoundError("Interface not found")
+            raise InterfaceNotFoundException(name)
         
         shutil.rmtree(interface_dir)
     
