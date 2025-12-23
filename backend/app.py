@@ -73,6 +73,13 @@ app.register_blueprint(peer_bp, url_prefix='/api')
 app.register_blueprint(config_bp, url_prefix='/api')
 app.register_blueprint(state_bp, url_prefix='/api')
 
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    """Health check endpoint."""
+    logger.debug("Health check requested")
+    return jsonify({"status": "ok", "message": "WireGuard API is running"})
+
+
 @app.errorhandler(WireGuardException)
 def handle_wireguard_exception(error):
     """Handle custom WireGuard exceptions."""
@@ -84,35 +91,75 @@ def handle_wireguard_exception(error):
     response.status_code = error.status_code
     return response
 
+@app.errorhandler(404)
+def handle_not_found(error):
+    """Handle 404 errors."""
+    # Check if it's an API request
+    if request.path.startswith('/api/'):
+        logger.warning(f"API endpoint not found: {request.path}")
+        return jsonify({
+            "error": "Endpoint not found",
+            "path": request.path
+        }), 404
+    
+    # For non-API routes, serve the static index.html (SPA routing)
+    try:
+        return send_from_directory(STATIC_FOLDER, 'index.html')
+    except Exception as e:
+        logger.error(f"Failed to serve index.html: {e}")
+        return jsonify({
+            "error": "Frontend not found",
+            "details": "The static files may not be installed. Please run the installation script."
+        }), 404
 
 @app.errorhandler(Exception)
 def handle_generic_exception(error):
     """Handle all other exceptions."""
+    # Don't log 404 as exceptions
+    if isinstance(error, Exception) and '404' in str(error):
+        return handle_not_found(error)
+    
     logger.exception(f"Unhandled exception: {str(error)}")
-    response = jsonify({
-        "error": "An internal server error occurred",
-        "details": str(error) if config.debug else None
-    })
-    response.status_code = 500
-    return response
-
+    
+    # Check if it's an API request
+    if request.path.startswith('/api/'):
+        response = jsonify({
+            "error": "An internal server error occurred",
+            "details": str(error) if config.debug else None,
+            "path": request.path
+        })
+        response.status_code = 500
+        return response
+    
+    # For non-API routes, try to serve index.html
+    try:
+        return send_from_directory(STATIC_FOLDER, 'index.html')
+    except:
+        return jsonify({
+            "error": "An internal server error occurred",
+            "details": str(error) if config.debug else None
+        }), 500
 
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve_static(path):
     """Serve static frontend files."""
+    # Never serve API routes as static files
+    if path.startswith('api/'):
+        return jsonify({"error": "API endpoint not found"}), 404
+    
     if path != "" and os.path.exists(os.path.join(STATIC_FOLDER, path)):
         return send_from_directory(STATIC_FOLDER, path)
     else:
-        # Serve index.html for all routes (SPA routing)
-        return send_from_directory(STATIC_FOLDER, 'index.html')
-
-@app.route('/api/health', methods=['GET'])
-def health_check():
-    """Health check endpoint."""
-    logger.debug("Health check requested")
-    return jsonify({"status": "ok", "message": "WireGuard API is running"})
-
+        # Serve index.html for all non-API routes (SPA routing)
+        try:
+            return send_from_directory(STATIC_FOLDER, 'index.html')
+        except Exception as e:
+            logger.error(f"Failed to serve static files: {e}")
+            return jsonify({
+                "error": "Frontend not found",
+                "details": "The static files may not be installed. Run: sudo ./install.sh"
+            }), 404
 
 def main():
     """Main entry point for console script."""
