@@ -1,0 +1,23 @@
+[Unit]
+Description=WireGuard Manager API Service
+After=network.target
+
+[Service]
+Type=simple
+User={{SERVICE_USER}}
+Group={{SERVICE_USER}}
+WorkingDirectory={{INSTALL_DIR}}
+Environment="PATH={{VENV_DIR}}/bin"
+ExecStart={{VENV_DIR}}/bin/python app.py
+Restart=always
+RestartSec=10
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/etc/wireguard /var/log/wireguard-manager
+
+[Install]
+WantedBy=multi-user.target

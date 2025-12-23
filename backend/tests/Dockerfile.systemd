@@ -1,0 +1,32 @@
+FROM jrei/systemd-ubuntu:22.04
+
+# Avoid prompts during package installation
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install dependencies required for the installation script
+RUN apt-get update && \
+    apt-get install -y sudo python3 python3-pip python3-venv wireguard-tools curl && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /tmp/wireguard-manager
+COPY . .
+
+# Partially run install.sh during build to set up files, user, and service.
+# We skip the systemd commands during build because systemd is not running in the build environment.
+RUN chmod +x install.sh && \
+    sed -i 's/systemctl start/true/g' install.sh && \
+    sed -i 's/systemctl enable/true/g' install.sh && \
+    sed -i 's/systemctl daemon-reload/true/g' install.sh && \
+    sed -i 's/systemctl is-active/true/g' install.sh && \
+    ./install.sh
+
+# Manually enable the service so it starts when the container boots
+RUN mkdir -p /etc/systemd/system/multi-user.target.wants && \
+    ln -s /etc/systemd/system/wireguard-manager.service /etc/systemd/system/multi-user.target.wants/wireguard-manager.service
+
+# Expose the API port
+EXPOSE 5000
+
+# The base image already has STOPSIGNAL and ENTRYPOINT set for systemd.
+# CMD is usually /lib/systemd/systemd

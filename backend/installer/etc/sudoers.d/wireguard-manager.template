@@ -1,0 +1,8 @@
+# Allow {{SERVICE_USER}} to run WireGuard commands without password
+{{SERVICE_USER}} ALL=(ALL) NOPASSWD: /usr/bin/wg
+{{SERVICE_USER}} ALL=(ALL) NOPASSWD: /usr/bin/wg-quick
+{{SERVICE_USER}} ALL=(ALL) NOPASSWD: /bin/systemctl start wg-quick@*
+{{SERVICE_USER}} ALL=(ALL) NOPASSWD: /bin/systemctl stop wg-quick@*
+{{SERVICE_USER}} ALL=(ALL) NOPASSWD: /bin/systemctl restart wg-quick@*
+{{SERVICE_USER}} ALL=(ALL) NOPASSWD: /bin/systemctl enable wg-quick@*
+{{SERVICE_USER}} ALL=(ALL) NOPASSWD: /bin/systemctl disable wg-quick@*

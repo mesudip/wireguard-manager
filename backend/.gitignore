@@ -45,3 +45,7 @@ htmlcov/
 # WireGuard
 *.conf
 /etc/
+
+# Allow installer templates
+!installer/
+!installer/**

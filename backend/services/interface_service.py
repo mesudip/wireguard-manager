@@ -9,6 +9,11 @@ from exceptions.wireguard_exceptions import (
     InterfaceNotFoundException,
     ConfigurationException
 )
+from utils.validators import (
+    validate_interface_name,
+    validate_ip_address,
+    validate_port
+)
 
 
 class InterfaceService:
@@ -33,6 +38,10 @@ class InterfaceService:
         listen_port: str = '51820'
     ) -> InterfaceResponse:
         """Create a new WireGuard interface."""
+        validate_interface_name(name)
+        validate_ip_address(address)
+        validate_port(listen_port)
+        
         interface_dir = os.path.join(self.base_dir, name)
         
         if os.path.exists(interface_dir):
@@ -94,6 +103,9 @@ class InterfaceService:
         listen_port: Optional[str] = None
     ) -> None:
         """Update a specific interface."""
+        validate_ip_address(address)
+        validate_port(listen_port)
+        
         interface_dir = os.path.join(self.base_dir, name)
         config_path = os.path.join(interface_dir, f"{name}.conf")
         

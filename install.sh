@@ -91,6 +91,12 @@ else
     exit 1
 fi
 
+# Get IP addresses for the success message
+echo -e "${YELLOW}Detecting server IP addresses...${NC}"
+IPV4_PUBLIC=$(curl -s4 --max-time 2 ifconfig.me 2>/dev/null || echo "")
+IPV6_PUBLIC=$(curl -s6 --max-time 2 ifconfig.me 2>/dev/null || echo "")
+LOCAL_IPS=$(hostname -I 2>/dev/null || echo "127.0.0.1")
+
 echo -e "${GREEN}================================================${NC}"
 echo -e "${GREEN}✓ WireGuard Manager installation complete!${NC}"
 echo -e "${GREEN}================================================${NC}"
@@ -101,7 +107,21 @@ echo ""
 echo "Next steps:"
 echo "  1. Configure the backend: nano /etc/wireguard/backend.conf"
 echo "  2. Restart the service: systemctl restart wireguard-manager"
-echo "  3. Access the web interface: http://your-server-ip:5000"
+
+echo "  3. Access the web interface:"
+if [ -n "$IPV4_PUBLIC" ]; then
+    echo "     - Public IPv4: http://$IPV4_PUBLIC:5000"
+fi
+if [ -n "$IPV6_PUBLIC" ]; then
+    echo "     - Public IPv6: http://[$IPV6_PUBLIC]:5000"
+fi
+
+# Also show local IPs if no public IPs or just as additional info
+if [ -n "$LOCAL_IPS" ]; then
+    for ip in $LOCAL_IPS; do
+        echo "     - Local IP: http://$ip:5000"
+    done
+fi
 echo ""
 echo "Useful commands:"
 echo "  - Check status: systemctl status wireguard-manager"
