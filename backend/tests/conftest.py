@@ -4,12 +4,17 @@ import time
 import requests
 import os
 import uuid
+import subprocess
+import sys
 from urllib.parse import urlparse
 from api_client import APIClient
 
 # Configuration
 IMAGE_NAME_STANDARD = "wireguard-backend-standard"
 IMAGE_NAME_SYSTEMD = "wireguard-backend-systemd"
+
+def pytest_addoption(parser):
+    parser.addoption("--host", action="store_true", help="Run tests against host backend")
 
 def get_docker_host():
     docker_host_env = os.environ.get('DOCKER_HOST')
@@ -27,13 +32,57 @@ def get_docker_host():
 def docker_client():
     return docker.from_env()
 
-@pytest.fixture(scope="session", params=["standard", "systemd"])
+@pytest.fixture(scope="session")
 def docker_stack(request, docker_client):
     mode = request.param
+    base_url = "http://localhost:5000"
+    
+    if mode == "host-systemd":
+        print(f"\nRunning in HOST SYSTEMD mode.")
+        backend_dir = os.path.join(os.path.dirname(__file__), "..")
+        install_script = os.path.join(backend_dir, "install.sh")
+        
+        print(f"Running installation script: {install_script}")
+        try:
+            subprocess.run(["bash", "-e", install_script], check=True, cwd=backend_dir)
+            print("Installation complete. Restarting service...")
+            subprocess.run([ "systemctl", "restart", "wireguard-manager"], check=True)
+        except subprocess.CalledProcessError as e:
+            pytest.fail(f"Failed to setup host systemd: {e}")
+        
+        try:
+            wait_for_ready(base_url, mode)
+            yield base_url
+        finally:
+            print("Stopping host systemd service...")
+            subprocess.run([ "systemctl", "stop", "wireguard-manager"], check=True)
+        return
+
+    if mode == "host-standard":
+        print(f"\nRunning in HOST STANDARD mode.")
+        # Ensure systemd service is stopped to avoid port conflict
+        subprocess.run([ "systemctl", "stop", "wireguard-manager"], check=False)
+        
+        backend_dir = os.path.join(os.path.dirname(__file__), "..")
+        app_path = os.path.join(backend_dir, "app.py")
+        python_exe = sys.executable
+        
+        print(f"Starting backend: {python_exe} {app_path}")
+        process = subprocess.Popen([ python_exe, app_path], cwd=backend_dir)
+        
+        try:
+            wait_for_ready(base_url, mode)
+            yield base_url
+        finally:
+            print(f"Stopping host-standard backend (PID: {process.pid})...")
+            subprocess.run([ "kill", str(process.pid)])
+            process.wait()
+        return
+
+    # Docker modes
     image_tag = IMAGE_NAME_STANDARD if mode == "standard" else IMAGE_NAME_SYSTEMD
     dockerfile = "Dockerfile" if mode == "standard" else "tests/Dockerfile.systemd"
     
-    # Build image
     print(f"\nBuilding {mode} Docker image {image_tag}...")
     image, logs = docker_client.images.build(
         path=os.path.join(os.path.dirname(__file__), ".."),
@@ -45,7 +94,6 @@ def docker_stack(request, docker_client):
         if 'stream' in log:
             print(log['stream'].strip())
 
-    # Run container
     container_name = f"wg-test-{mode}-{uuid.uuid4().hex[:8]}"
     print(f"Starting {mode} container {container_name}...")
     
@@ -57,20 +105,8 @@ def docker_stack(request, docker_client):
     }
     
     if mode == "systemd":
-        # Required for systemd in docker
-        # On GHA (Cgroup v2), host cgroupns and specific volumes are often needed
-        kwargs["volumes"] = {
-            '/sys/fs/cgroup': {'bind': '/sys/fs/cgroup', 'mode': 'rw'}
-        }
-        kwargs["tmpfs"] = {
-            '/run': '',
-            '/run/lock': '',
-            '/tmp': '',
-            '/run/wireguard': ''
-        }
-        
-        # Only add cgroupns_mode if supported by the library
-        # Instead of version checking, we'll try-catch the run call later
+        kwargs["volumes"] = {'/sys/fs/cgroup': {'bind': '/sys/fs/cgroup', 'mode': 'rw'}}
+        kwargs["tmpfs"] = {'/run': '', '/run/lock': '', '/tmp': '', '/run/wireguard': ''}
         kwargs["cgroupns_mode"] = "host"
     
     try:
@@ -82,20 +118,24 @@ def docker_stack(request, docker_client):
         else:
             raise
 
-    # Reload to get port mapping info
     container.reload()
     ports = container.attrs['NetworkSettings']['Ports']
     host_port = ports['5000/tcp'][0]['HostPort']
-    
     host = get_docker_host()
     base_url = f"http://{host}:{host_port}"
-    print(f"API available at {base_url} ({mode} mode)")
+    
+    try:
+        wait_for_ready(base_url, mode)
+        yield base_url
+    finally:
+        print(f"\nStopping container {container_name}...")
+        container.remove(force=True)
 
-    # Wait for health check
-    print("Waiting for API to be ready...")
+def wait_for_ready(base_url, mode):
+    print(f"Waiting for {mode} API to be ready at {base_url}...")
     start_time = time.time()
     ready = False
-    timeout = 90 if mode == "systemd" else 30 # systemd takes longer to boot
+    timeout = 90 if "systemd" in mode else 30
     while time.time() - start_time < timeout:
         try:
             response = requests.get(f"{base_url}/api/health", timeout=2)
@@ -107,52 +147,14 @@ def docker_stack(request, docker_client):
             time.sleep(2)
     
     if not ready:
-        print(f"Timeout waiting for {mode} API.")
-        
-        # Reload to get updated status
-        container.reload()
-        is_running = container.status == 'running'
-        print(f"Container status: {container.status}")
+        pytest.fail(f"API ({mode}) did not become ready in time at {base_url}.")
 
-        if not is_running:
-            print("\nContainer logs (since it's not running):")
-            print(container.logs().decode('utf-8'))
-        
-        if mode == "systemd":
-            print("\nSystemd Diagnostics:")
-            if is_running:
-                try:
-                    # Check if systemd is even running
-                    ps = container.exec_run("ps aux")
-                    print("Process List:")
-                    print(ps.output.decode('utf-8'))
-                    
-                    # Check service status
-                    status = container.exec_run("systemctl status wireguard-manager")
-                    print("\nService Status:")
-                    print(status.output.decode('utf-8'))
-                    
-                    # Check journal
-                    print("\nJournalctl logs (systemd):")
-                    journals = container.exec_run("journalctl -u wireguard-manager -n 100")
-                    print(journals.output.decode('utf-8'))
-                except Exception as e:
-                    print(f"Failed to get diagnostics via exec: {e}")
-            else:
-                print("Cannot run systemctl/ps because container is not running.")
+def pytest_generate_tests(metafunc):
+    if "docker_stack" in metafunc.fixturenames:
+        if metafunc.config.getoption("host"):
+            metafunc.parametrize("docker_stack", ["host-standard", "host-systemd"], indirect=True)
         else:
-            if is_running:
-                print("Container logs:")
-                print(container.logs().decode('utf-8'))
-                
-        container.remove(force=True)
-        pytest.fail(f"API ({mode}) did not become ready in time.")
-
-    yield base_url
-
-    # Teardown
-    print(f"\nStopping container {container_name}...")
-    container.remove(force=True)
+            metafunc.parametrize("docker_stack", ["standard", "systemd"], indirect=True)
 
 @pytest.fixture(scope="session")
 def api_client(docker_stack):
