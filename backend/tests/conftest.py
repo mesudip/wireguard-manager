@@ -60,9 +60,14 @@ def docker_stack(request, docker_client):
         # Required for systemd in docker
         # On GHA (Cgroup v2), host cgroupns and specific volumes are often needed
         kwargs["volumes"] = {
-            '/sys/fs/cgroup': {'bind': '/sys/fs/cgroup', 'mode': 'rw'} # Revert to rw for now
+            '/sys/fs/cgroup': {'bind': '/sys/fs/cgroup', 'mode': 'rw'}
         }
-        kwargs["tmpfs"] = {'/run': '', '/run/lock': ''}
+        kwargs["tmpfs"] = {
+            '/run': '',
+            '/run/lock': '',
+            '/tmp': '',
+            '/run/wireguard': ''
+        }
         
         # Only add cgroupns_mode if supported by the library
         # Instead of version checking, we'll try-catch the run call later
@@ -104,28 +109,41 @@ def docker_stack(request, docker_client):
     if not ready:
         print(f"Timeout waiting for {mode} API.")
         
-        if mode == "systemd":
-            print("\nSystemd Status Check:")
-            try:
-                # Check if systemd is even running
-                ps = container.exec_run("ps aux")
-                print("Process List:")
-                print(ps.output.decode('utf-8'))
-                
-                # Check service status
-                status = container.exec_run("systemctl status wireguard-manager")
-                print("\nService Status:")
-                print(status.output.decode('utf-8'))
-                
-                # Check journal
-                print("\nJournalctl logs (systemd):")
-                journals = container.exec_run("journalctl -u wireguard-manager -n 100")
-                print(journals.output.decode('utf-8'))
-            except Exception as e:
-                print(f"Failed to get diagnostics: {e}")
-        else:
-            print("Container logs:")
+        # Reload to get updated status
+        container.reload()
+        is_running = container.status == 'running'
+        print(f"Container status: {container.status}")
+
+        if not is_running:
+            print("\nContainer logs (since it's not running):")
             print(container.logs().decode('utf-8'))
+        
+        if mode == "systemd":
+            print("\nSystemd Diagnostics:")
+            if is_running:
+                try:
+                    # Check if systemd is even running
+                    ps = container.exec_run("ps aux")
+                    print("Process List:")
+                    print(ps.output.decode('utf-8'))
+                    
+                    # Check service status
+                    status = container.exec_run("systemctl status wireguard-manager")
+                    print("\nService Status:")
+                    print(status.output.decode('utf-8'))
+                    
+                    # Check journal
+                    print("\nJournalctl logs (systemd):")
+                    journals = container.exec_run("journalctl -u wireguard-manager -n 100")
+                    print(journals.output.decode('utf-8'))
+                except Exception as e:
+                    print(f"Failed to get diagnostics via exec: {e}")
+            else:
+                print("Cannot run systemctl/ps because container is not running.")
+        else:
+            if is_running:
+                print("Container logs:")
+                print(container.logs().decode('utf-8'))
                 
         container.remove(force=True)
         pytest.fail(f"API ({mode}) did not become ready in time.")

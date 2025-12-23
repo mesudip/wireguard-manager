@@ -14,11 +14,7 @@ COPY . .
 
 # Partially run install.sh during build to set up files, user, and service.
 # We skip the systemd commands during build because systemd is not running in the build environment.
-RUN chmod +x install.sh && \
-    sed -i 's/systemctl start/true/g' install.sh && \
-    sed -i 's/systemctl enable/true/g' install.sh && \
-    sed -i 's/systemctl daemon-reload/true/g' install.sh && \
-    sed -i 's/systemctl is-active/true/g' install.sh && \
+RUN find . -name "install.sh" -exec sed -i 's/systemctl/true/g' {} + && \
     ./install.sh
 
 # Manually enable the service so it starts when the container boots
