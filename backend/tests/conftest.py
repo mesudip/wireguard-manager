@@ -58,12 +58,24 @@ def docker_stack(request, docker_client):
     
     if mode == "systemd":
         # Required for systemd in docker
+        # On GHA (Cgroup v2), host cgroupns and specific volumes are often needed
         kwargs["volumes"] = {
-            '/sys/fs/cgroup': {'bind': '/sys/fs/cgroup', 'mode': 'rw'}
+            '/sys/fs/cgroup': {'bind': '/sys/fs/cgroup', 'mode': 'rw'} # Revert to rw for now
         }
         kwargs["tmpfs"] = {'/run': '', '/run/lock': ''}
+        
+        # Only add cgroupns_mode if supported by the library
+        # Instead of version checking, we'll try-catch the run call later
+        kwargs["cgroupns_mode"] = "host"
     
-    container = docker_client.containers.run(image_tag, **kwargs)
+    try:
+        container = docker_client.containers.run(image_tag, **kwargs)
+    except TypeError as e:
+        if 'cgroupns_mode' in str(e) and mode == "systemd":
+            del kwargs['cgroupns_mode']
+            container = docker_client.containers.run(image_tag, **kwargs)
+        else:
+            raise
 
     # Reload to get port mapping info
     container.reload()
@@ -78,30 +90,42 @@ def docker_stack(request, docker_client):
     print("Waiting for API to be ready...")
     start_time = time.time()
     ready = False
-    timeout = 60 if mode == "systemd" else 30 # systemd takes longer to boot
+    timeout = 90 if mode == "systemd" else 30 # systemd takes longer to boot
     while time.time() - start_time < timeout:
         try:
-            response = requests.get(f"{base_url}/api/health")
+            response = requests.get(f"{base_url}/api/health", timeout=2)
             if response.status_code == 200:
                 print("API is ready!")
                 ready = True
                 break
-        except requests.exceptions.ConnectionError:
-            time.sleep(1)
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+            time.sleep(2)
     
     if not ready:
         print(f"Timeout waiting for {mode} API.")
-        print("Container logs:")
-        print(container.logs().decode('utf-8'))
         
         if mode == "systemd":
-            print("\nJournalctl logs (systemd):")
+            print("\nSystemd Status Check:")
             try:
-                # Try to get journals from the container
+                # Check if systemd is even running
+                ps = container.exec_run("ps aux")
+                print("Process List:")
+                print(ps.output.decode('utf-8'))
+                
+                # Check service status
+                status = container.exec_run("systemctl status wireguard-manager")
+                print("\nService Status:")
+                print(status.output.decode('utf-8'))
+                
+                # Check journal
+                print("\nJournalctl logs (systemd):")
                 journals = container.exec_run("journalctl -u wireguard-manager -n 100")
                 print(journals.output.decode('utf-8'))
-            except:
-                pass
+            except Exception as e:
+                print(f"Failed to get diagnostics: {e}")
+        else:
+            print("Container logs:")
+            print(container.logs().decode('utf-8'))
                 
         container.remove(force=True)
         pytest.fail(f"API ({mode}) did not become ready in time.")
