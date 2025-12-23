@@ -1,5 +1,6 @@
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
+from flask_swagger_ui import get_swaggerui_blueprint
 import os
 import subprocess
 import configparser
@@ -21,6 +22,7 @@ from routes.interface_routes import create_interface_routes
 from routes.peer_routes import create_peer_routes
 from routes.config_routes import create_config_routes
 from routes.state_routes import create_state_routes
+from swagger.spec import get_swagger_spec
 
 config = AppConfig()
 
@@ -72,6 +74,31 @@ app.register_blueprint(interface_bp, url_prefix='/api')
 app.register_blueprint(peer_bp, url_prefix='/api')
 app.register_blueprint(config_bp, url_prefix='/api')
 app.register_blueprint(state_bp, url_prefix='/api')
+
+SWAGGER_URL = '/api/docs'
+API_SPEC_URL = '/api/swagger.json'
+
+swaggerui_blueprint = get_swaggerui_blueprint(
+    SWAGGER_URL,
+    API_SPEC_URL,
+    config={
+        'app_name': "WireGuard Manager API",
+        'docExpansion': 'list',
+        'defaultModelsExpandDepth': 3,
+        'displayRequestDuration': True,
+        'filter': True,
+        'showExtensions': True,
+        'tryItOutEnabled': True
+    }
+)
+
+app.register_blueprint(swaggerui_blueprint, url_prefix=SWAGGER_URL)
+logger.info(f"Swagger UI configured at {SWAGGER_URL}")
+
+@app.route('/api/swagger.json', methods=['GET'])
+def swagger_spec():
+    """Serve the OpenAPI specification."""
+    return jsonify(get_swagger_spec())
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
@@ -169,6 +196,7 @@ def main():
     
     logger.info(f"Starting WireGuard Manager on {host}:{port} (debug={debug})")
     logger.info(f"Serving static files from: {STATIC_FOLDER}")
+    logger.info(f"API documentation available at: http://{host if host != '::' else 'localhost'}:{port}{SWAGGER_URL}")
     
     # Try to bind to configured host
     try:
