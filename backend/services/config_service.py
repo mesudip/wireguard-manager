@@ -111,7 +111,7 @@ class ConfigService:
         
         return '\n'.join(diff)
 
-    def apply_config(self, interface: str) -> None:
+    def apply_config(self, interface: str) -> Optional[str]:
         """Apply the final config file to the running interface."""
         final_config_path = os.path.join(self.base_dir, f"{interface}.conf")
         
@@ -141,16 +141,23 @@ class ConfigService:
                             f.write(f"{key} = {value}\n")
             
             # 3. Apply the clean config using wg syncconf
+            warnings = []
             try:
-                run_command(["wg", "syncconf", interface, clean_config_path])
+                result = run_command(["wg", "syncconf", interface, clean_config_path])
+                if result.stderr:
+                    warnings.append(result.stderr.decode())
             except subprocess.CalledProcessError as e:
                 error_msg = e.stderr.decode() if e.stderr else str(e)
                 if "No such device" in error_msg:
                     # If the interface doesn't exist, try to bring it up with wg-quick
                     # wg-quick needs the full config (with Address)
-                    run_command(["wg-quick", "up", final_config_path])
+                    result = run_command(["wg-quick", "up", final_config_path])
+                    if result.stderr:
+                        warnings.append(result.stderr.decode())
                 else:
                     raise
+            
+            return "\n".join(warnings) if warnings else None
         except subprocess.CalledProcessError as e:
             error_msg = e.stderr.decode() if e.stderr else str(e)
             raise RuntimeError(f"Failed to apply WireGuard state: {error_msg}")

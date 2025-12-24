@@ -52,7 +52,7 @@ class PeerService:
             raise ValueError("Peer already exists")
         
         # Generate keys for peer
-        private_key, public_key = generate_keys()
+        private_key, public_key, warnings = generate_keys()
         
         # Create peer config
         peer_config: WireGuardConfig = {
@@ -70,7 +70,8 @@ class PeerService:
             "name": name,
             "public_key": public_key,
             "allowed_ips": allowed_ips,
-            "endpoint": endpoint
+            "endpoint": endpoint,
+            "warnings": warnings
         }
     
     def get_peer(self, interface: str, peer_name: str) -> PeerResponse:

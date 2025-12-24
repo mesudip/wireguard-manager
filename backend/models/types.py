@@ -24,12 +24,13 @@ class WireGuardConfig(TypedDict):
     Peers: List[PeerConfig]
 
 
-class InterfaceResponse(TypedDict):
+class InterfaceResponse(TypedDict, total=False):
     """Response for interface creation/retrieval."""
     name: str
     public_key: str
     address: str
     listen_port: str
+    warnings: Optional[str]
 
 
 class InterfaceDetailResponse(InterfaceResponse):
@@ -37,12 +38,13 @@ class InterfaceDetailResponse(InterfaceResponse):
     config: WireGuardConfig
 
 
-class PeerResponse(TypedDict):
+class PeerResponse(TypedDict, total=False):
     """Response for peer operations."""
     name: str
     public_key: str
     allowed_ips: str
     endpoint: str
+    warnings: Optional[str]
 
 
 class PeerStateInfo(TypedDict, total=False):
@@ -62,6 +64,7 @@ class InterfaceState(TypedDict, total=False):
     status: str  # active, inactive, not_found
     message: Optional[str]
     peers: List[PeerStateInfo]
+    warnings: Optional[str]
 
 
 class DiffResponse(TypedDict, total=False):
@@ -69,6 +72,7 @@ class DiffResponse(TypedDict, total=False):
     diff: str
     status: str
     message: Optional[str]
+    warnings: Optional[str]
 
 
 class ErrorResponse(TypedDict, total=False):
@@ -81,3 +85,4 @@ class SuccessResponse(TypedDict, total=False):
     """Success response with optional path."""
     message: str
     path: Optional[str]
+    warnings: Optional[str]

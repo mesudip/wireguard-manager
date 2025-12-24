@@ -50,7 +50,7 @@ class InterfaceService:
         os.makedirs(interface_dir, exist_ok=True)
         
         # Generate keys
-        private_key, public_key = generate_keys()
+        private_key, public_key, warnings = generate_keys()
         
         # Create interface config
         config: WireGuardConfig = {
@@ -69,7 +69,8 @@ class InterfaceService:
             "name": name,
             "public_key": public_key,
             "address": address,
-            "listen_port": listen_port
+            "listen_port": listen_port,
+            "warnings": warnings
         }
     
     def get_interface(self, name: str) -> InterfaceDetailResponse:
@@ -86,14 +87,15 @@ class InterfaceService:
         
         # Get public key from private key
         private_key = config['Interface'].get('PrivateKey', '')
-        public_key = get_public_key(private_key) if private_key else ''
+        public_key, warnings = get_public_key(private_key) if private_key else ('', None)
         
         return {
             "name": name,
             "public_key": public_key,
             "address": config['Interface'].get('Address', ''),
             "listen_port": config['Interface'].get('ListenPort', ''),
-            "config": config
+            "config": config,
+            "warnings": warnings
         }
     
     def update_interface(

@@ -41,6 +41,11 @@ class StateService:
                 state['peers'].append(current_peer)
             
             state['status'] = 'active'
+            
+            # Capture warnings from stderr
+            if result.stderr:
+                state['warnings'] = result.stderr.decode()
+                
             return state
         except subprocess.CalledProcessError as e:
             error_msg = e.stderr.decode() if e.stderr else str(e)
@@ -96,7 +101,12 @@ class StateService:
             tofile='state'
         ))
         
-        return {
+        result_dict = {
             "diff": '\n'.join(diff),
             "status": "success"
         }
+        
+        if 'result' in locals() and result.stderr:
+            result_dict['warnings'] = result.stderr.decode()
+            
+        return result_dict

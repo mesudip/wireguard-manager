@@ -77,8 +77,11 @@ def create_config_routes(config_service: ConfigService):
             config_service.sync_config(interface)
             
             # 2. Apply .conf file to running state
-            config_service.apply_config(interface)
-            return jsonify({"message": "Config applied and state updated successfully"})
+            warnings = config_service.apply_config(interface)
+            return jsonify({
+                "message": "Config applied and state updated successfully",
+                "warnings": warnings
+            })
                 
         except FileNotFoundError as e:
             return jsonify({"error": str(e)}), 404

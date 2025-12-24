@@ -19,7 +19,8 @@ def get_swagger_spec(app=None):
             "address": {"type": "string", "example": "10.0.0.1/24"},
             "listen_port": {"type": "string", "example": "51820"},
             "private_key": {"type": "string", "example": "cGhpcHBMVGtOU3h..."},
-            "public_key": {"type": "string", "example": "MTVHVGtOU3hwaGl..."}
+            "public_key": {"type": "string", "example": "MTVHVGtOU3hwaGl..."},
+            "warnings": {"type": "string"}
         }
     })
 
@@ -64,7 +65,8 @@ def get_swagger_spec(app=None):
             "peers": {
                 "type": "array",
                 "items": {"$ref": "#/components/schemas/PeerState"}
-            }
+            },
+            "warnings": {"type": "string"}
         }
     })
 
@@ -73,7 +75,8 @@ def get_swagger_spec(app=None):
         "properties": {
             "diff": {"type": "string"},
             "status": {"type": "string", "enum": ["success", "inactive", "not_found", "error"]},
-            "message": {"type": "string"}
+            "message": {"type": "string"},
+            "warnings": {"type": "string"}
         }
     })
 
@@ -84,7 +87,8 @@ def get_swagger_spec(app=None):
             "public_key": {"type": "string"},
             "private_key": {"type": "string"},
             "allowed_ips": {"type": "string", "example": "10.0.0.2/32"},
-            "endpoint": {"type": "string", "example": "203.0.113.1:51820"}
+            "endpoint": {"type": "string", "example": "203.0.113.1:51820"},
+            "warnings": {"type": "string"}
         }
     })
 
