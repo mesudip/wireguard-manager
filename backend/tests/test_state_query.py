@@ -42,7 +42,9 @@ def test_state_non_existent_interface(api_client):
     assert response.status_code == 200
     assert response.json()["status"] == "not_found"
     
-    # Diff should also return 200 but message showing error
+    # Diff should also return 200 with status="not_found"
     response = api_client.get_state_diff("nonexistent")
     assert response.status_code == 200
-    assert "Error" in response.json()["diff"]
+    result = response.json()
+    assert result["status"] == "not_found"
+    assert "not found" in result["message"].lower() or "no such device" in result["message"].lower()

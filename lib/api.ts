@@ -144,7 +144,7 @@ export async function getInterfaceState(interfaceName: string): Promise<Interfac
   return res.json()
 }
 
-export async function getStateDiff(interfaceName: string): Promise<{ diff: string }> {
+export async function getStateDiff(interfaceName: string): Promise<{ diff: string; status: string; message?: string }> {
   const res = await fetch(`${API_BASE_URL}/interfaces/${interfaceName}/state/diff`)
   if (!res.ok) throw new Error("Failed to get state diff")
   return res.json()

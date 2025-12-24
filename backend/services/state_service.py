@@ -65,7 +65,7 @@ class StateService:
                 "peers": []
             }
     
-    def get_state_diff(self, interface: str) -> str:
+    def get_state_diff(self, interface: str) -> Dict[str, Any]:
         """Get diff between wg command output and current conf file."""
         final_config_path = os.path.join(self.base_dir, f"{interface}.conf")
         
@@ -91,9 +91,21 @@ class StateService:
                 tofile='state'
             ))
             
-            return '\n'.join(diff)
+            return {
+                "diff": '\n'.join(diff),
+                "status": "success"
+            }
         except subprocess.CalledProcessError as e:
             error_msg = e.stderr.decode() if e.stderr else str(e)
-            return f"Error getting state for diff: {error_msg}"
+            status = "not_found" if ("does not exist" in error_msg.lower() or "no such device" in error_msg.lower()) else "inactive"
+            return {
+                "diff": "",
+                "status": status,
+                "message": f"Unable to get state for diff: {error_msg.strip()}"
+            }
         except Exception as e:
-            return f"Error getting state for diff: {str(e)}"
+            return {
+                "diff": "",
+                "status": "error",
+                "message": f"Error getting state for diff: {str(e)}"
+            }

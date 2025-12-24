@@ -64,9 +64,11 @@ class InterfaceState(TypedDict, total=False):
     peers: List[PeerStateInfo]
 
 
-class DiffResponse(TypedDict):
+class DiffResponse(TypedDict, total=False):
     """Diff comparison result."""
     diff: str
+    status: str
+    message: Optional[str]
 
 
 class ErrorResponse(TypedDict, total=False):

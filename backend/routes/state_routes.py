@@ -16,7 +16,7 @@ def create_state_routes(state_service: StateService):
     @state_bp.route('/interfaces/<interface>/state/diff', methods=['GET'])
     def get_state_diff(interface):
         """Get diff between wg command output and current conf file."""
-        diff = state_service.get_state_diff(interface)
-        return jsonify({"diff": diff})
+        result = state_service.get_state_diff(interface)
+        return jsonify(result)
     
     return state_bp
