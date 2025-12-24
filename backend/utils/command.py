@@ -7,6 +7,15 @@ from typing import List, Optional
 from exceptions.wireguard_exceptions import CommandNotFoundException, PermissionDeniedException
 
 
+# Global configuration for sudo usage
+_AUTO_SUDO = True
+
+
+def set_auto_sudo(enabled: bool) -> None:
+    """Set whether to automatically use sudo for privileged commands."""
+    global _AUTO_SUDO
+    _AUTO_SUDO = enabled
+
 def find_command(command: str) -> str:
     """
     Find the full path to a command.
@@ -62,7 +71,7 @@ def run_command(
             # Auto-sudo for wg and wg-quick if not already present and not explicitly disabled
             # genkey and pubkey don't need sudo
             privileged_cmds = ['wg', 'wg-quick', 'systemctl']
-            if command[0] in privileged_cmds and not use_sudo:
+            if command[0] in privileged_cmds and not use_sudo and _AUTO_SUDO:
                 if command[0] != 'wg' or (len(command) > 1 and command[1] not in ['genkey', 'pubkey']):
                     # Check if we are already root. If not, use sudo.
                     if os.geteuid() != 0:

@@ -27,6 +27,7 @@ class AppConfig:
         },
         'wireguard': {
             'base_dir': '/etc/wireguard',
+            'use_sudo': 'true',
         },
         'logging': {
             'method': 'console',
@@ -144,6 +145,10 @@ class AppConfig:
     @property
     def wireguard_base_dir(self) -> str:
         return self.get('wireguard', 'base_dir')
+    
+    @property
+    def wireguard_use_sudo(self) -> bool:
+        return self.get_bool('wireguard', 'use_sudo')
     
     @property
     def logging_method(self) -> str:

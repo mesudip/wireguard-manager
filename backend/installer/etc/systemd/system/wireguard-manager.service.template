@@ -4,8 +4,12 @@ After=network.target
 
 [Service]
 Type=simple
+# Default: Run as non-root user and use sudo for WireGuard commands (configured in backend.conf)
 User={{SERVICE_USER}}
 Group={{SERVICE_USER}}
+# Alternative: Run as root and set 'use_sudo = false' in /etc/wireguard/backend.conf
+# User=root
+# Group=root
 WorkingDirectory={{INSTALL_DIR}}
 Environment="PATH={{VENV_DIR}}/bin"
 ExecStart={{VENV_DIR}}/bin/python app.py

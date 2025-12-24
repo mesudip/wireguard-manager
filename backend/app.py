@@ -13,6 +13,7 @@ import socket
 from config.app_config import AppConfig
 from utils.logger import setup_logger
 from exceptions.wireguard_exceptions import WireGuardException
+from utils.command import set_auto_sudo
 
 from services.interface_service import InterfaceService
 from services.peer_service import PeerService
@@ -56,6 +57,10 @@ if config.cors_enabled:
     logger.info(f"CORS enabled with origins: {config.cors_origins}")
 else:
     logger.info("CORS disabled")
+
+# Set sudo configuration
+set_auto_sudo(config.wireguard_use_sudo)
+logger.info(f"Automatic sudo usage: {config.wireguard_use_sudo}")
 
 BASE_DIR = config.wireguard_base_dir
 Path(BASE_DIR).mkdir(parents=True, exist_ok=True)
