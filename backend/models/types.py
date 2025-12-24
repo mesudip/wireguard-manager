@@ -24,6 +24,14 @@ class WireGuardConfig(TypedDict):
     Peers: List[PeerConfig]
 
 
+class CommandLog(TypedDict):
+    """Log of executed system command."""
+    command: str
+    return_code: int
+    stdout: str
+    stderr: str
+
+
 class InterfaceResponse(TypedDict, total=False):
     """Response for interface creation/retrieval."""
     name: str
@@ -31,6 +39,7 @@ class InterfaceResponse(TypedDict, total=False):
     address: str
     listen_port: str
     warnings: Optional[str]
+    commands: Optional[List[CommandLog]]
 
 
 class InterfaceDetailResponse(InterfaceResponse):
@@ -45,6 +54,7 @@ class PeerResponse(TypedDict, total=False):
     allowed_ips: str
     endpoint: str
     warnings: Optional[str]
+    commands: Optional[List[CommandLog]]
 
 
 class PeerStateInfo(TypedDict, total=False):
@@ -65,6 +75,7 @@ class InterfaceState(TypedDict, total=False):
     message: Optional[str]
     peers: List[PeerStateInfo]
     warnings: Optional[str]
+    commands: Optional[List[CommandLog]]
 
 
 class DiffResponse(TypedDict, total=False):
@@ -73,6 +84,7 @@ class DiffResponse(TypedDict, total=False):
     status: str
     message: Optional[str]
     warnings: Optional[str]
+    commands: Optional[List[CommandLog]]
 
 
 class ErrorResponse(TypedDict, total=False):
@@ -86,3 +98,4 @@ class SuccessResponse(TypedDict, total=False):
     message: str
     path: Optional[str]
     warnings: Optional[str]
+    commands: Optional[List[CommandLog]]

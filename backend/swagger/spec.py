@@ -12,6 +12,16 @@ def get_swagger_spec(app=None):
     )
 
     # Define components/schemas
+    spec.components.schema("CommandLog", {
+        "type": "object",
+        "properties": {
+            "command": {"type": "string"},
+            "return_code": {"type": "integer"},
+            "stdout": {"type": "string"},
+            "stderr": {"type": "string"}
+        }
+    })
+
     spec.components.schema("Interface", {
         "type": "object",
         "properties": {
@@ -20,7 +30,11 @@ def get_swagger_spec(app=None):
             "listen_port": {"type": "string", "example": "51820"},
             "private_key": {"type": "string", "example": "cGhpcHBMVGtOU3h..."},
             "public_key": {"type": "string", "example": "MTVHVGtOU3hwaGl..."},
-            "warnings": {"type": "string"}
+            "warnings": {"type": "string"},
+            "commands": {
+                "type": "array",
+                "items": {"$ref": "#/components/schemas/CommandLog"}
+            }
         }
     })
 
@@ -66,7 +80,11 @@ def get_swagger_spec(app=None):
                 "type": "array",
                 "items": {"$ref": "#/components/schemas/PeerState"}
             },
-            "warnings": {"type": "string"}
+            "warnings": {"type": "string"},
+            "commands": {
+                "type": "array",
+                "items": {"$ref": "#/components/schemas/CommandLog"}
+            }
         }
     })
 
@@ -76,7 +94,11 @@ def get_swagger_spec(app=None):
             "diff": {"type": "string"},
             "status": {"type": "string", "enum": ["success", "inactive", "not_found", "error"]},
             "message": {"type": "string"},
-            "warnings": {"type": "string"}
+            "warnings": {"type": "string"},
+            "commands": {
+                "type": "array",
+                "items": {"$ref": "#/components/schemas/CommandLog"}
+            }
         }
     })
 
@@ -88,7 +110,11 @@ def get_swagger_spec(app=None):
             "private_key": {"type": "string"},
             "allowed_ips": {"type": "string", "example": "10.0.0.2/32"},
             "endpoint": {"type": "string", "example": "203.0.113.1:51820"},
-            "warnings": {"type": "string"}
+            "warnings": {"type": "string"},
+            "commands": {
+                "type": "array",
+                "items": {"$ref": "#/components/schemas/CommandLog"}
+            }
         }
     })
 

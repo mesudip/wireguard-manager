@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory, g
 from flask_cors import CORS
 from flask_swagger_ui import get_swaggerui_blueprint
 import os
@@ -99,6 +99,24 @@ swaggerui_blueprint = get_swaggerui_blueprint(
 
 app.register_blueprint(swaggerui_blueprint, url_prefix=SWAGGER_URL)
 logger.info(f"Swagger UI configured at {SWAGGER_URL}")
+
+@app.before_request
+def initialize_command_logs():
+    """Initialize command log list for the current request."""
+    g.command_logs = []
+
+@app.after_request
+def inject_command_logs(response):
+    """Inject command execution logs into JSON responses."""
+    if response.is_json and hasattr(g, 'command_logs') and g.command_logs:
+        try:
+            data = response.get_json()
+            if isinstance(data, dict):
+                data['commands'] = g.command_logs
+                response.set_data(json.dumps(data))
+        except Exception as e:
+            logger.error(f"Failed to inject command logs: {e}")
+    return response
 
 @app.route('/api/swagger.json', methods=['GET'])
 def swagger_spec():

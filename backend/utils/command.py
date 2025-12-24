@@ -4,6 +4,13 @@ import subprocess
 import shutil
 import os
 from typing import List, Optional
+try:
+    from flask import g, has_app_context
+except ImportError:
+    # Handle case where flask is not installed (e.g. basic scripts)
+    def has_app_context(): return False
+    g = None
+
 from exceptions.wireguard_exceptions import CommandNotFoundException, PermissionDeniedException
 
 
@@ -98,6 +105,16 @@ def run_command(
             stderr=subprocess.PIPE,
             check=check
         )
+        
+        # Capture command execution log if in app context
+        if has_app_context() and hasattr(g, 'command_logs'):
+            g.command_logs.append({
+                "command": " ".join(command),
+                "return_code": result.returncode,
+                "stdout": result.stdout.decode(errors='replace') if result.stdout else "",
+                "stderr": result.stderr.decode(errors='replace') if result.stderr else ""
+            })
+            
         return result
         
     except FileNotFoundError:
