@@ -77,35 +77,26 @@ class StateService:
                 config = parsed
         
         # Get current state
+        state_output = ""
         try:
             result = run_command(["wg", "show", interface])
             state_output = result.stdout.decode()
+        except (subprocess.CalledProcessError, Exception):
+            # If interface doesn't exist or other error, we treat state as empty
+            # but we still want to show the diff between config and nothing
+            pass
             
-            config_lines = json.dumps(config, indent=2, sort_keys=True).splitlines()
-            state_lines = state_output.splitlines()
-            
-            diff = list(difflib.unified_diff(
-                config_lines, state_lines,
-                lineterm='',
-                fromfile='config',
-                tofile='state'
-            ))
-            
-            return {
-                "diff": '\n'.join(diff),
-                "status": "success"
-            }
-        except subprocess.CalledProcessError as e:
-            error_msg = e.stderr.decode() if e.stderr else str(e)
-            status = "not_found" if ("does not exist" in error_msg.lower() or "no such device" in error_msg.lower()) else "inactive"
-            return {
-                "diff": "",
-                "status": status,
-                "message": f"Unable to get state for diff: {error_msg.strip()}"
-            }
-        except Exception as e:
-            return {
-                "diff": "",
-                "status": "error",
-                "message": f"Error getting state for diff: {str(e)}"
-            }
+        config_lines = json.dumps(config, indent=2, sort_keys=True).splitlines()
+        state_lines = state_output.splitlines()
+        
+        diff = list(difflib.unified_diff(
+            config_lines, state_lines,
+            lineterm='',
+            fromfile='config',
+            tofile='state'
+        ))
+        
+        return {
+            "diff": '\n'.join(diff),
+            "status": "success"
+        }

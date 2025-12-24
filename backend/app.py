@@ -98,11 +98,27 @@ logger.info(f"Swagger UI configured at {SWAGGER_URL}")
 @app.route('/api/swagger.json', methods=['GET'])
 def swagger_spec():
     """Serve the OpenAPI specification."""
-    return jsonify(get_swagger_spec())
+    return jsonify(get_swagger_spec(app))
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
-    """Health check endpoint."""
+    """Health check endpoint.
+    ---
+    get:
+      tags: ["Health"]
+      summary: Health check
+      description: Check if the API is running
+      responses:
+        200:
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: {"type": "string", "example": "ok"}
+                  message: {"type": "string", "example": "WireGuard API is running"}
+    """
     logger.debug("Health check requested")
     return jsonify({"status": "ok", "message": "WireGuard API is running"})
 

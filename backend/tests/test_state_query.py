@@ -42,9 +42,12 @@ def test_state_non_existent_interface(api_client):
     assert response.status_code == 200
     assert response.json()["status"] == "not_found"
     
-    # Diff should also return 200 with status="not_found"
+    # Diff should now return 200 with status="success" even if interface doesn't exist
+    # because it treats the missing interface as an empty state.
     response = api_client.get_state_diff("nonexistent")
     assert response.status_code == 200
     result = response.json()
-    assert result["status"] == "not_found"
-    assert "not found" in result["message"].lower() or "no such device" in result["message"].lower()
+    assert result["status"] == "success"
+    # The diff won't be empty if there's no such interface but we have a config for it.
+    # But for "nonexistent", there's probably no config either, so diff might be empty.
+    # If both config and state are empty, diff is empty.

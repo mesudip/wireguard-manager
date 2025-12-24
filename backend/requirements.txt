@@ -1,3 +1,5 @@
 Flask==3.0.0
 flask-cors==4.0.0
 flask-swagger-ui==4.11.1
+apispec==6.4.0
+apispec-webframeworks==1.1.0
