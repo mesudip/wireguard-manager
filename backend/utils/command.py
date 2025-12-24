@@ -2,6 +2,7 @@
 
 import subprocess
 import shutil
+import os
 from typing import List, Optional
 from exceptions.wireguard_exceptions import CommandNotFoundException, PermissionDeniedException
 
@@ -37,7 +38,8 @@ def find_command(command: str) -> str:
 def run_command(
     command: List[str],
     input_data: Optional[bytes] = None,
-    check: bool = True
+    check: bool = True,
+    use_sudo: bool = False
 ) -> subprocess.CompletedProcess:
     """
     Run a system command with proper error handling.
@@ -56,9 +58,29 @@ def run_command(
         subprocess.CalledProcessError: If command fails and check=True
     """
     try:
-        # Resolve command to full path
         if command:
-            command[0] = find_command(command[0])
+            # Auto-sudo for wg and wg-quick if not already present and not explicitly disabled
+            # genkey and pubkey don't need sudo
+            privileged_cmds = ['wg', 'wg-quick', 'systemctl']
+            if command[0] in privileged_cmds and not use_sudo:
+                if command[0] != 'wg' or (len(command) > 1 and command[1] not in ['genkey', 'pubkey']):
+                    # Check if we are already root. If not, use sudo.
+                    if os.geteuid() != 0:
+                        use_sudo = True
+            
+            if use_sudo and command[0] != 'sudo':
+                command = ['sudo'] + command
+            
+            # Resolve all command parts that look like binaries
+            # If it's ['sudo', 'wg', ...], we want to resolve 'sudo' and 'wg'
+            start_idx = 0
+            if command[0] == 'sudo':
+                 # Resolve sudo itself
+                 command[0] = find_command('sudo')
+                 start_idx = 1
+            
+            if len(command) > start_idx:
+                command[start_idx] = find_command(command[start_idx])
         
         result = subprocess.run(
             command,

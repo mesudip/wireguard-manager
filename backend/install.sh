@@ -29,7 +29,7 @@ echo -e "${GREEN}Starting WireGuard Manager backend installation...${NC}"
 
 # Check and install dependencies
 echo -e "${YELLOW}Checking system dependencies...${NC}"
-DEPS=("python3" "pip3" "python3-venv" "wg")
+DEPS=("python3" "pip3" "python3-venv" "wg" "ip")
 MISSING_DEPS=()
 
 for dep in "${DEPS[@]}"; do

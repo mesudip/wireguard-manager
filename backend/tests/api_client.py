@@ -46,3 +46,49 @@ class APIClient:
 
     def delete_interface(self, name: str) -> requests.Response:
         return requests.delete(f"{self.base_url}/api/interfaces/{name}")
+
+    # Peer Management
+    def list_peers(self, interface: str) -> requests.Response:
+        return requests.get(f"{self.base_url}/api/interfaces/{interface}/peers")
+
+    def add_peer(self, interface: str, name: str, allowed_ips: str = '10.0.0.2/32', endpoint: str = '') -> requests.Response:
+        data = {
+            "name": name,
+            "allowed_ips": allowed_ips,
+            "endpoint": endpoint
+        }
+        return requests.post(f"{self.base_url}/api/interfaces/{interface}/peers", json=data)
+
+    def get_peer(self, interface: str, peer_name: str) -> requests.Response:
+        return requests.get(f"{self.base_url}/api/interfaces/{interface}/peers/{peer_name}")
+
+    def update_peer(self, interface: str, peer_name: str, allowed_ips: Optional[str] = None, endpoint: Optional[str] = None) -> requests.Response:
+        data = {}
+        if allowed_ips:
+            data['allowed_ips'] = allowed_ips
+        if endpoint:
+            data['endpoint'] = endpoint
+        return requests.put(f"{self.base_url}/api/interfaces/{interface}/peers/{peer_name}", json=data)
+
+    def delete_peer(self, interface: str, peer_name: str) -> requests.Response:
+        return requests.delete(f"{self.base_url}/api/interfaces/{interface}/peers/{peer_name}")
+
+    # Config Management
+    def sync_config(self, interface: str) -> requests.Response:
+        return requests.post(f"{self.base_url}/api/interfaces/{interface}/config/sync")
+
+    def apply_config(self, interface: str) -> requests.Response:
+        return requests.post(f"{self.base_url}/api/interfaces/{interface}/config/apply")
+
+    def reset_config(self, interface: str) -> requests.Response:
+        return requests.post(f"{self.base_url}/api/interfaces/{interface}/config/reset")
+
+    def get_config_diff(self, interface: str) -> requests.Response:
+        return requests.get(f"{self.base_url}/api/interfaces/{interface}/config/diff")
+
+    # State Management
+    def get_state(self, interface: str) -> requests.Response:
+        return requests.get(f"{self.base_url}/api/interfaces/{interface}/state")
+
+    def get_state_diff(self, interface: str) -> requests.Response:
+        return requests.get(f"{self.base_url}/api/interfaces/{interface}/state/diff")

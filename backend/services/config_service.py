@@ -1,16 +1,19 @@
 import os
 import json
 import difflib
-from typing import List
+import shutil
+import subprocess
+from typing import List, Optional
 from models.types import WireGuardConfig, DiffResponse
 from services.config import parse_config, write_config
+from utils.command import run_command
 
 
 class ConfigService:
     def __init__(self, base_dir: str):
         self.base_dir = base_dir
     
-    def apply_config(self, interface: str) -> str:
+    def sync_config(self, interface: str) -> str:
         """Generate the final config file from the interface folder."""
         interface_dir = os.path.join(self.base_dir, interface)
         interface_config_path = os.path.join(interface_dir, f"{interface}.conf")
@@ -50,7 +53,9 @@ class ConfigService:
         if not config:
             raise ValueError("Invalid config file")
         
-        # Create interface directory
+        # Clean and Recreate interface directory
+        if os.path.exists(interface_dir):
+            shutil.rmtree(interface_dir)
         os.makedirs(interface_dir, exist_ok=True)
         
         # Write interface config (without peers)
@@ -105,3 +110,55 @@ class ConfigService:
         ))
         
         return '\n'.join(diff)
+
+    def apply_config(self, interface: str) -> None:
+        """Apply the final config file to the running interface."""
+        final_config_path = os.path.join(self.base_dir, f"{interface}.conf")
+        
+        if not os.path.exists(final_config_path):
+            raise FileNotFoundError(f"Config file for {interface} not found. Run sync first.")
+        
+        # 1. Parse the config to filter out non-wg fields (like Address)
+        config = parse_config(final_config_path)
+        if not config:
+            raise ValueError(f"Could not parse config file at {final_config_path}")
+            
+        # 2. Create a temporary clean config for 'wg syncconf'
+        # wg syncconf only supports PrivateKey, ListenPort, FwMark in [Interface]
+        clean_config_path = f"{final_config_path}.tmp"
+        try:
+            with open(clean_config_path, 'w') as f:
+                f.write('[Interface]\n')
+                # Only include fields supported by 'wg syncconf'
+                for key in ['PrivateKey', 'ListenPort', 'FwMark']:
+                    if key in config['Interface']:
+                        f.write(f"{key} = {config['Interface'][key]}\n")
+                
+                for peer in config.get('Peers', []):
+                    f.write('\n[Peer]\n')
+                    for key, value in peer.items():
+                        if value:
+                            f.write(f"{key} = {value}\n")
+            
+            # 3. Apply the clean config using wg syncconf
+            try:
+                run_command(["wg", "syncconf", interface, clean_config_path])
+            except subprocess.CalledProcessError as e:
+                error_msg = e.stderr.decode() if e.stderr else str(e)
+                if "No such device" in error_msg:
+                    # If the interface doesn't exist, try to bring it up with wg-quick
+                    # wg-quick needs the full config (with Address)
+                    run_command(["wg-quick", "up", final_config_path])
+                else:
+                    raise
+        except subprocess.CalledProcessError as e:
+            error_msg = e.stderr.decode() if e.stderr else str(e)
+            raise RuntimeError(f"Failed to apply WireGuard state: {error_msg}")
+        except Exception as e:
+            # Re-wrap other exceptions (like PermissionDeniedException) to provide context
+            if not isinstance(e, (RuntimeError, FileNotFoundError, ValueError)):
+                raise RuntimeError(f"Failed to apply WireGuard state: {str(e)}")
+            raise
+        finally:
+            if os.path.exists(clean_config_path):
+                os.remove(clean_config_path)

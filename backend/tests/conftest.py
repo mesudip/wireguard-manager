@@ -88,6 +88,7 @@ def docker_stack(request, docker_client):
         path=os.path.join(os.path.dirname(__file__), ".."),
         dockerfile=dockerfile,
         tag=image_tag,
+        nocache=False,
         rm=True
     )
     for log in logs:
