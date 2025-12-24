@@ -98,26 +98,45 @@ def run_command(
             if len(command) > start_idx:
                 command[start_idx] = find_command(command[start_idx])
         
-        result = subprocess.run(
-            command,
-            input=input_data,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            check=check
-        )
+        try:
+            result = subprocess.run(
+                command,
+                input=input_data,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=check
+            )
+            
+            # Capture command execution log if in app context
+            if has_app_context() and hasattr(g, 'command_logs'):
+                g.command_logs.append({
+                    "command": " ".join(command),
+                    "return_code": result.returncode,
+                    "stdout": result.stdout.decode(errors='replace') if result.stdout else "",
+                    "stderr": result.stderr.decode(errors='replace') if result.stderr else ""
+                })
+                
+            return result
+        except subprocess.CalledProcessError as e:
+            # Capture command execution log even on failure
+            if has_app_context() and hasattr(g, 'command_logs'):
+                g.command_logs.append({
+                    "command": " ".join(command),
+                    "return_code": e.returncode,
+                    "stdout": e.stdout.decode(errors='replace') if e.stdout else "",
+                    "stderr": e.stderr.decode(errors='replace') if e.stderr else ""
+                })
+            raise
         
-        # Capture command execution log if in app context
+    except FileNotFoundError:
+        # Capture command execution log for missing command
         if has_app_context() and hasattr(g, 'command_logs'):
             g.command_logs.append({
                 "command": " ".join(command),
-                "return_code": result.returncode,
-                "stdout": result.stdout.decode(errors='replace') if result.stdout else "",
-                "stderr": result.stderr.decode(errors='replace') if result.stderr else ""
+                "return_code": -1,
+                "stdout": "",
+                "stderr": f"Command not found: {command[0] if command else 'unknown'}"
             })
-            
-        return result
-        
-    except FileNotFoundError:
         raise CommandNotFoundException(command[0] if command else "unknown")
     except PermissionError:
         raise PermissionDeniedException(f"executing {' '.join(command)}")
