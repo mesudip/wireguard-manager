@@ -5,12 +5,13 @@ def test_state_queries(api_client, test_interface):
     
     # 1. Get State (equivalent to wg show)
     response = api_client.get_state(test_interface)
-    # If the interface is not up, state_service might return 404 or 500 depending on error message
-    assert response.status_code in [200, 404, 500]
+    assert response.status_code == 200
+    state = response.json()
+    assert "status" in state
     
     # 2. Get State Diff
     response = api_client.get_state_diff(test_interface)
-    assert response.status_code in [200, 404, 500]
+    assert response.status_code == 200
 
 def test_state_reflects_peer_addition(api_client, test_interface):
     """Test that adding a peer and applying config/state is reflected in wg show."""
@@ -36,9 +37,12 @@ def test_state_reflects_peer_addition(api_client, test_interface):
         pytest.skip(f"Config apply failed (likely env issue): {apply_resp.text}")
 
 def test_state_non_existent_interface(api_client):
-    # Depending on whether 'wg show' or 'FileNotFoundError' hits first
+    # Now should return 200 with status="not_found"
     response = api_client.get_state("nonexistent")
-    assert response.status_code in [404, 500]
+    assert response.status_code == 200
+    assert response.json()["status"] == "not_found"
     
+    # Diff should also return 200 but message showing error
     response = api_client.get_state_diff("nonexistent")
-    assert response.status_code in [404, 500]
+    assert response.status_code == 200
+    assert "Error" in response.json()["diff"]

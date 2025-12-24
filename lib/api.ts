@@ -16,6 +16,8 @@ export interface Peer {
 
 export interface InterfaceState {
   interface: string
+  status: "active" | "inactive" | "not_found"
+  message?: string
   peers: Array<{
     public_key: string
     endpoint?: string

@@ -56,9 +56,11 @@ class PeerStateInfo(TypedDict, total=False):
     persistent_keepalive: Optional[str]
 
 
-class InterfaceState(TypedDict):
+class InterfaceState(TypedDict, total=False):
     """Live interface state with all peers."""
     interface: str
+    status: str  # active, inactive, not_found
+    message: Optional[str]
     peers: List[PeerStateInfo]
 
 

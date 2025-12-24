@@ -40,14 +40,30 @@ class StateService:
             if current_peer:
                 state['peers'].append(current_peer)
             
+            state['status'] = 'active'
             return state
         except subprocess.CalledProcessError as e:
             error_msg = e.stderr.decode() if e.stderr else str(e)
             if "does not exist" in error_msg.lower() or "no such device" in error_msg.lower():
-                raise InterfaceNotFoundException(interface)
-            raise StateException(interface, error_msg)
+                return {
+                    "interface": interface,
+                    "status": "not_found",
+                    "message": f"Interface '{interface}' not found",
+                    "peers": []
+                }
+            return {
+                "interface": interface,
+                "status": "inactive",
+                "message": error_msg,
+                "peers": []
+            }
         except Exception as e:
-            raise StateException(interface, str(e))
+            return {
+                "interface": interface,
+                "status": "inactive",
+                "message": str(e),
+                "peers": []
+            }
     
     def get_state_diff(self, interface: str) -> str:
         """Get diff between wg command output and current conf file."""
@@ -78,8 +94,6 @@ class StateService:
             return '\n'.join(diff)
         except subprocess.CalledProcessError as e:
             error_msg = e.stderr.decode() if e.stderr else str(e)
-            if "does not exist" in error_msg.lower() or "no such device" in error_msg.lower():
-                raise InterfaceNotFoundException(interface)
-            raise StateException(interface, error_msg)
+            return f"Error getting state for diff: {error_msg}"
         except Exception as e:
-            raise StateException(interface, str(e))
+            return f"Error getting state for diff: {str(e)}"

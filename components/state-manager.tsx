@@ -28,10 +28,16 @@ export function StateManager({ interfaceName, refreshTrigger }: StateManagerProp
       const data = await getInterfaceState(interfaceName)
       setState(data)
     } catch (error) {
-      setState(null)
+      setState({
+        interface: interfaceName,
+        status: "inactive",
+        message: "Failed to connect to API",
+        peers: [],
+      })
       toast({
-        title: "Info",
-        description: "Interface is not active or not found",
+        title: "Error",
+        description: "Failed to get interface state",
+        variant: "destructive",
       })
     } finally {
       setLoading(false)
@@ -81,12 +87,24 @@ export function StateManager({ interfaceName, refreshTrigger }: StateManagerProp
 
       {loading && !state ? (
         <div className="py-8 text-center text-sm text-muted-foreground">Loading state...</div>
+      ) : state && state.status !== "active" ? (
+        <Card className="border-border">
+          <CardContent className="py-12">
+            <div className="text-center">
+              <Activity className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
+              <p className="text-sm font-medium">{state.status === "not_found" ? "Interface Not Found" : "Interface Inactive"}</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {state.message || (state.status === "not_found" ? "This interface does not exist in the system." : "The interface is configured but not currently running.")}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       ) : !state ? (
         <Card className="border-border">
           <CardContent className="py-12">
             <div className="text-center">
               <Activity className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Interface is not active</p>
+              <p className="text-sm text-muted-foreground">Unable to fetch state information</p>
             </div>
           </CardContent>
         </Card>
