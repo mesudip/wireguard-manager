@@ -149,3 +149,4 @@ export async function getStateDiff(interfaceName: string): Promise<{ diff: strin
   if (!res.ok) throw new Error("Failed to get state diff")
   return res.json()
 }
+

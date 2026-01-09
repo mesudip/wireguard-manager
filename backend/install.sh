@@ -70,15 +70,41 @@ cd "$INSTALL_DIR"
 
 # Create virtual environment
 echo -e "${YELLOW}Creating Python virtual environment...${NC}"
-if [ ! -d "$VENV_DIR" ]; then
-    python3 -m venv "$VENV_DIR"
+# Remove existing venv if it's incomplete (missing activate script)
+if [ -d "$VENV_DIR" ] && [ ! -f "$VENV_DIR/bin/activate" ]; then
+    echo -e "${YELLOW}Removing incomplete virtual environment...${NC}"
+    rm -rf "$VENV_DIR"
 fi
 
-# Activate virtual environment and install dependencies
+if [ ! -d "$VENV_DIR" ]; then
+    python3 -m venv "$VENV_DIR"
+    if [ ! -d "$VENV_DIR" ]; then
+        echo -e "${RED}Error: Failed to create virtual environment at $VENV_DIR${NC}"
+        exit 1
+    fi
+    
+    # Check if activate script was created
+    if [ ! -f "$VENV_DIR/bin/activate" ]; then
+        echo -e "${RED}Error: Virtual environment created but activate script is missing${NC}"
+        echo -e "${RED}This usually means python3-venv package is incomplete or broken${NC}"
+        echo -e "${YELLOW}Attempting to reinstall python3-venv...${NC}"
+        apt-get install --reinstall -y python3-venv
+        
+        # Try creating venv again
+        rm -rf "$VENV_DIR"
+        python3 -m venv "$VENV_DIR"
+        
+        if [ ! -f "$VENV_DIR/bin/activate" ]; then
+            echo -e "${RED}Still failed to create activate script. Python installation may be broken.${NC}"
+            exit 1
+        fi
+    fi
+fi
+
+# Install dependencies using pip directly (works with or without activate)
 echo -e "${YELLOW}Installing Python dependencies...${NC}"
-source "$VENV_DIR/bin/activate"
-pip install --upgrade pip
-pip install -r requirements.txt
+"$VENV_DIR/bin/pip" install --upgrade pip
+"$VENV_DIR/bin/pip" install -r requirements.txt
 
 # Create WireGuard directory with proper permissions
 echo -e "${YELLOW}Setting up WireGuard directory...${NC}"

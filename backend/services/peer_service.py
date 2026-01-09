@@ -3,6 +3,7 @@ from typing import List, Optional
 from models.types import WireGuardConfig, PeerResponse
 from services.config import parse_config, write_config
 from services.crypto import generate_keys
+from utils.validators import validate_ip_address, validate_endpoint
 
 
 class PeerService:
@@ -50,6 +51,10 @@ class PeerService:
         peer_path = os.path.join(interface_dir, f"{name}.conf")
         if os.path.exists(peer_path):
             raise ValueError("Peer already exists")
+        
+        # Validate inputs
+        validate_ip_address(allowed_ips)
+        validate_endpoint(endpoint)
         
         # Generate keys for peer
         private_key, public_key, warnings = generate_keys()
@@ -115,8 +120,10 @@ class PeerService:
         peer_data = peer_config['Peers'][0]
         
         if allowed_ips is not None:
+            validate_ip_address(allowed_ips)
             peer_data['AllowedIPs'] = allowed_ips
         if endpoint is not None:
+            validate_endpoint(endpoint)
             peer_data['Endpoint'] = endpoint
         
         write_config(peer_path, peer_config)

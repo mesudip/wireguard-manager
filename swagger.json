@@ -1,0 +1,1023 @@
+{
+  "components": {
+    "schemas": {
+      "CommandLog": {
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "return_code": {
+            "type": "integer"
+          },
+          "stderr": {
+            "type": "string"
+          },
+          "stdout": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "DiffResponse": {
+        "properties": {
+          "commands": {
+            "items": {
+              "$ref": "#/components/schemas/CommandLog"
+            },
+            "type": "array"
+          },
+          "diff": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "success",
+              "inactive",
+              "not_found",
+              "error"
+            ],
+            "type": "string"
+          },
+          "warnings": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Error": {
+        "properties": {
+          "details": {
+            "type": "string"
+          },
+          "error": {
+            "example": "Interface not found",
+            "type": "string"
+          },
+          "type": {
+            "example": "InterfaceNotFoundException",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Interface": {
+        "properties": {
+          "address": {
+            "example": "10.0.0.1/24",
+            "type": "string"
+          },
+          "commands": {
+            "items": {
+              "$ref": "#/components/schemas/CommandLog"
+            },
+            "type": "array"
+          },
+          "listen_port": {
+            "example": "51820",
+            "type": "string"
+          },
+          "name": {
+            "example": "wg0",
+            "type": "string"
+          },
+          "private_key": {
+            "example": "cGhpcHBMVGtOU3h...",
+            "type": "string"
+          },
+          "public_key": {
+            "example": "MTVHVGtOU3hwaGl...",
+            "type": "string"
+          },
+          "warnings": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "InterfaceCreate": {
+        "properties": {
+          "address": {
+            "example": "10.0.0.1/24",
+            "type": "string"
+          },
+          "listen_port": {
+            "example": "51820",
+            "type": "string"
+          },
+          "name": {
+            "example": "wg0",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "InterfaceState": {
+        "properties": {
+          "commands": {
+            "items": {
+              "$ref": "#/components/schemas/CommandLog"
+            },
+            "type": "array"
+          },
+          "interface": {
+            "example": "wg0",
+            "type": "string"
+          },
+          "listening_port": {
+            "example": 51820,
+            "type": "integer"
+          },
+          "message": {
+            "type": "string"
+          },
+          "peers": {
+            "items": {
+              "$ref": "#/components/schemas/PeerState"
+            },
+            "type": "array"
+          },
+          "public_key": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "inactive",
+              "not_found"
+            ],
+            "type": "string"
+          },
+          "warnings": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "InterfaceUpdate": {
+        "properties": {
+          "address": {
+            "example": "10.0.0.1/24",
+            "type": "string"
+          },
+          "listen_port": {
+            "example": "51820",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Peer": {
+        "properties": {
+          "allowed_ips": {
+            "example": "10.0.0.2/32",
+            "type": "string"
+          },
+          "commands": {
+            "items": {
+              "$ref": "#/components/schemas/CommandLog"
+            },
+            "type": "array"
+          },
+          "endpoint": {
+            "example": "203.0.113.1:51820",
+            "type": "string"
+          },
+          "name": {
+            "example": "client1",
+            "type": "string"
+          },
+          "private_key": {
+            "type": "string"
+          },
+          "public_key": {
+            "type": "string"
+          },
+          "warnings": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "PeerCreate": {
+        "properties": {
+          "allowed_ips": {
+            "example": "10.0.0.2/32",
+            "type": "string"
+          },
+          "endpoint": {
+            "example": "203.0.113.1:51820",
+            "type": "string"
+          },
+          "name": {
+            "example": "client1",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "PeerState": {
+        "properties": {
+          "allowed_ips": {
+            "type": "string"
+          },
+          "endpoint": {
+            "type": "string"
+          },
+          "latest_handshake": {
+            "type": "integer"
+          },
+          "public_key": {
+            "type": "string"
+          },
+          "transfer_rx": {
+            "type": "integer"
+          },
+          "transfer_tx": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "PeerUpdate": {
+        "properties": {
+          "allowed_ips": {
+            "example": "10.0.0.2/32",
+            "type": "string"
+          },
+          "endpoint": {
+            "example": "203.0.113.1:51820",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "WireGuard Manager API",
+    "version": "1.0.0"
+  },
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/health": {
+      "get": {
+        "description": "Check if the API is running",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "message": {
+                      "example": "WireGuard API is running",
+                      "type": "string"
+                    },
+                    "status": {
+                      "example": "ok",
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "API is healthy"
+          }
+        },
+        "summary": "Health check",
+        "tags": [
+          "Health"
+        ]
+      }
+    },
+    "/api/interfaces": {
+      "get": {
+        "description": "Get a list of all WireGuard interfaces",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Interface"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "List of interfaces"
+          }
+        },
+        "summary": "List all interfaces",
+        "tags": [
+          "Interfaces"
+        ]
+      },
+      "post": {
+        "description": "Create a new WireGuard interface",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InterfaceCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Interface"
+                }
+              }
+            },
+            "description": "Interface created successfully"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Invalid request"
+          }
+        },
+        "summary": "Create a new interface",
+        "tags": [
+          "Interfaces"
+        ]
+      }
+    },
+    "/api/interfaces/{interface}": {
+      "delete": {
+        "description": "Delete an existing interface",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "interface",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Interface deleted successfully"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Interface not found"
+          }
+        },
+        "summary": "Delete interface",
+        "tags": [
+          "Interfaces"
+        ]
+      },
+      "get": {
+        "description": "Get details of a specific interface",
+        "parameters": [
+          {
+            "description": "Interface name (e.g., wg0)",
+            "in": "path",
+            "name": "interface",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Interface"
+                }
+              }
+            },
+            "description": "Interface details"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Interface not found"
+          }
+        },
+        "summary": "Get interface details",
+        "tags": [
+          "Interfaces"
+        ]
+      },
+      "put": {
+        "description": "Update an existing interface",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "interface",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InterfaceUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Interface updated successfully"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Interface not found"
+          }
+        },
+        "summary": "Update interface",
+        "tags": [
+          "Interfaces"
+        ]
+      }
+    },
+    "/api/interfaces/{interface}/config/apply": {
+      "post": {
+        "description": "Generate config AND apply it to running state (syncconf/up)",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "interface",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Config applied successfully"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Interface not found"
+          }
+        },
+        "summary": "Apply config",
+        "tags": [
+          "Config"
+        ]
+      }
+    },
+    "/api/interfaces/{interface}/config/diff": {
+      "get": {
+        "description": "Get diff between folder structure and current conf file",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "interface",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "diff": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Config diff"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Interface not found"
+          }
+        },
+        "summary": "Get config diff",
+        "tags": [
+          "Config"
+        ]
+      }
+    },
+    "/api/interfaces/{interface}/config/reset": {
+      "post": {
+        "description": "Generate interface folder from final config file",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "interface",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Config reset successfully"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Interface not found"
+          }
+        },
+        "summary": "Reset config",
+        "tags": [
+          "Config"
+        ]
+      }
+    },
+    "/api/interfaces/{interface}/config/sync": {
+      "post": {
+        "description": "Generate final config file from interface folder structure",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "interface",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "path": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Config synchronized successfully"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Interface not found"
+          }
+        },
+        "summary": "Sync config",
+        "tags": [
+          "Config"
+        ]
+      }
+    },
+    "/api/interfaces/{interface}/peers": {
+      "get": {
+        "description": "Get all peers for an interface",
+        "parameters": [
+          {
+            "description": "Interface name",
+            "in": "path",
+            "name": "interface",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Peer"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "List of peers"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Interface not found"
+          }
+        },
+        "summary": "List peers",
+        "tags": [
+          "Peers"
+        ]
+      },
+      "post": {
+        "description": "Add a new peer to an interface",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "interface",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PeerCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Peer"
+                }
+              }
+            },
+            "description": "Peer created successfully"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Interface not found"
+          }
+        },
+        "summary": "Add peer",
+        "tags": [
+          "Peers"
+        ]
+      }
+    },
+    "/api/interfaces/{interface}/peers/{peer_name}": {
+      "delete": {
+        "description": "Delete an existing peer",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "interface",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "peer_name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Peer deleted successfully"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Peer not found"
+          }
+        },
+        "summary": "Delete peer",
+        "tags": [
+          "Peers"
+        ]
+      },
+      "get": {
+        "description": "Get details of a specific peer",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "interface",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "peer_name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Peer"
+                }
+              }
+            },
+            "description": "Peer details"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Peer not found"
+          }
+        },
+        "summary": "Get peer details",
+        "tags": [
+          "Peers"
+        ]
+      },
+      "put": {
+        "description": "Update an existing peer",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "interface",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "peer_name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PeerUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Peer updated successfully"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Peer not found"
+          }
+        },
+        "summary": "Update peer",
+        "tags": [
+          "Peers"
+        ]
+      }
+    },
+    "/api/interfaces/{interface}/state": {
+      "get": {
+        "description": "Get current state of interface from wg show command",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "interface",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InterfaceState"
+                }
+              }
+            },
+            "description": "Interface state"
+          }
+        },
+        "summary": "Get interface state",
+        "tags": [
+          "State"
+        ]
+      }
+    },
+    "/api/interfaces/{interface}/state/diff": {
+      "get": {
+        "description": "Get diff between wg show output and current conf file",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "interface",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiffResponse"
+                }
+              }
+            },
+            "description": "State diff"
+          }
+        },
+        "summary": "Get state diff",
+        "tags": [
+          "State"
+        ]
+      }
+    }
+  }
+}
+

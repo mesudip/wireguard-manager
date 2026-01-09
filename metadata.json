@@ -1,0 +1,5 @@
+{
+  "name": "Wireguard UI Manager",
+  "description": "A modern web interface for managing Wireguard configurations, peers, and states via a backend API. Provides a comprehensive dashboard for monitoring and controlling your VPN interfaces.",
+  "requestFramePermissions": []
+}
