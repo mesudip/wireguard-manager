@@ -19,14 +19,24 @@ def validate_interface_name(name: str):
             f"Invalid interface name '{name}'. Must start with a letter and contain only alphanumeric characters, underscores, or dashes."
         )
 
-def validate_ip_address(address: str):
+def validate_ip_address(address: str, allow_multiple: bool = False):
     if not address:
         return
-    try:
-        # Check if it's a valid IPv4 or IPv6 interface (address/prefix)
-        ipaddress.ip_interface(address)
-    except ValueError as e:
-        raise ConfigurationException(f"Invalid IP address format: {str(e)}")
+    
+    if not allow_multiple and ',' in address:
+        raise ConfigurationException("Multiple IP addresses are not allowed in this field")
+
+    # Support multiple comma-separated IP addresses if allowed
+    addresses = [a.strip() for a in address.split(',')]
+    
+    for addr in addresses:
+        if not addr:
+            continue
+        try:
+            # Check if it's a valid IPv4 or IPv6 interface (address/prefix)
+            ipaddress.ip_interface(addr)
+        except ValueError as e:
+            raise ConfigurationException(f"Invalid IP address format '{addr}': {str(e)}")
 
 def validate_port(port: Any):
     if port is None:

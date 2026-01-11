@@ -2,6 +2,7 @@ import os
 import json
 import subprocess
 import difflib
+import ipaddress
 from typing import List, Dict, Any, Optional
 from models.types import InterfaceState, PeerStateInfo, WireGuardConfig
 from services.config import parse_config
@@ -97,6 +98,27 @@ class StateService:
         except Exception:
             return None
 
+    def _normalize_allowed_ips(self, allowed_ips: Optional[str]) -> Optional[str]:
+        """Normalize AllowedIPs into a canonical sorted comma-separated string."""
+        if not allowed_ips:
+            return allowed_ips
+        
+        normalized = []
+        for part in allowed_ips.split(','):
+            part = part.strip()
+            if not part:
+                continue
+            try:
+                # Use ip_network to handle both bare IPs and CIDR
+                # strict=False allows host bits to be set, which WireGuard ignores anyway
+                network = ipaddress.ip_network(part, strict=False)
+                normalized.append(str(network))
+            except ValueError:
+                # If it's invalid, just keep it as is (should have been validated anyway)
+                normalized.append(part)
+        
+        return ",".join(sorted(normalized))
+
     def _get_comparable_state(self, interface: str) -> Dict[str, Any]:
         """Normalize live state into a comparable format."""
         state = self.get_state(interface)
@@ -115,7 +137,7 @@ class StateService:
         for peer in state.get('peers', []):
             normalized_peer = {
                 "PublicKey": peer.get('public_key'),
-                "AllowedIPs": peer.get('allowed_ips'),
+                "AllowedIPs": self._normalize_allowed_ips(peer.get('allowed_ips')),
                 "Endpoint": peer.get('endpoint'),
                 # PersistentKeepalive might be in peers if configured
                 "PersistentKeepalive": peer.get('persistent_keepalive')
@@ -149,7 +171,7 @@ class StateService:
         for peer in config.get('Peers', []):
             normalized_peer = {
                 "PublicKey": peer.get('PublicKey'),
-                "AllowedIPs": peer.get('AllowedIPs'),
+                "AllowedIPs": self._normalize_allowed_ips(peer.get('AllowedIPs')),
                 "Endpoint": peer.get('Endpoint'),
                 "PersistentKeepalive": peer.get('PersistentKeepalive')
             }

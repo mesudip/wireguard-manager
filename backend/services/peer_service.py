@@ -53,7 +53,9 @@ class PeerService:
             raise ValueError("Peer already exists")
         
         # Validate inputs
-        validate_ip_address(allowed_ips)
+        if allowed_ips:
+            allowed_ips = ",".join([a.strip() for a in allowed_ips.split(',') if a.strip()])
+        validate_ip_address(allowed_ips, allow_multiple=True)
         validate_endpoint(endpoint)
         
         # Generate keys for peer
@@ -120,7 +122,9 @@ class PeerService:
         peer_data = peer_config['Peers'][0]
         
         if allowed_ips is not None:
-            validate_ip_address(allowed_ips)
+            if allowed_ips:
+                allowed_ips = ",".join([a.strip() for a in allowed_ips.split(',') if a.strip()])
+            validate_ip_address(allowed_ips, allow_multiple=True)
             peer_data['AllowedIPs'] = allowed_ips
         if endpoint is not None:
             validate_endpoint(endpoint)

@@ -19,7 +19,7 @@ from utils.validators import (
 class InterfaceService:
     def __init__(self, base_dir: str):
         self.base_dir = base_dir
-        Path(base_dir).mkdir(parents=True, exist_ok=True)
+        Path(base_dir).mkdir(parents=True, exist_ok=True, mode=0o750)
     
     def list_interfaces(self) -> List[str]:
         """List all WireGuard interfaces."""
@@ -39,7 +39,7 @@ class InterfaceService:
     ) -> InterfaceResponse:
         """Create a new WireGuard interface."""
         validate_interface_name(name)
-        validate_ip_address(address)
+        validate_ip_address(address, allow_multiple=False)
         validate_port(listen_port)
         
         interface_dir = os.path.join(self.base_dir, name)
@@ -47,7 +47,7 @@ class InterfaceService:
         if os.path.exists(interface_dir):
             raise ConfigurationException(f"Interface '{name}' already exists")
         
-        os.makedirs(interface_dir, exist_ok=True)
+        os.makedirs(interface_dir, exist_ok=True, mode=0o750)
         
         # Generate keys
         private_key, public_key, warnings = generate_keys()
@@ -105,7 +105,7 @@ class InterfaceService:
         listen_port: Optional[str] = None
     ) -> None:
         """Update a specific interface."""
-        validate_ip_address(address)
+        validate_ip_address(address, allow_multiple=False)
         validate_port(listen_port)
         
         interface_dir = os.path.join(self.base_dir, name)
