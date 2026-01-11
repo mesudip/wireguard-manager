@@ -52,14 +52,14 @@ def parse_config(config_path: str) -> Optional[WireGuardConfig]:
 
 def write_config(config_path: str, config_data: WireGuardConfig) -> None:
     """
-    Write a WireGuard config file.
-    
-    Args:
-        config_path: Path to write the config file
-        config_data: Config data to write
+    Write a WireGuard config file with secure permissions (0640).
+    Directories are created with 0750 permissions.
     """
-    Path(config_path).parent.mkdir(parents=True, exist_ok=True)
+    # Create parent directories with 0750 permissions
+    Path(config_path).parent.mkdir(parents=True, exist_ok=True, mode=0o750)
     
+    # We use os.open and os.fdopen to set permissions at creation time or chmod after
+    # But for simplicity and cross-platform (where supported), we'll write then chmod
     with open(config_path, 'w') as f:
         f.write('[Interface]\n')
         for key, value in config_data.get('Interface', {}).items():
@@ -70,3 +70,10 @@ def write_config(config_path: str, config_data: WireGuardConfig) -> None:
             for key, value in peer.items():
                 if value:  # Only write non-empty values
                     f.write(f'{key} = {value}\n')
+    
+    # Set secure permissions: owner read/write, group read (0640)
+    try:
+        os.chmod(config_path, 0o640)
+    except OSError:
+        # Ignore errors if we don't have permission to chmod (e.g. not owner)
+        pass
