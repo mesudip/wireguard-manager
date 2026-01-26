@@ -32,6 +32,21 @@ class CommandLog(TypedDict):
     stderr: str
 
 
+class HostInfo(TypedDict, total=False):
+    """Host public IP information."""
+    ips: List[str]
+    manual: Optional[bool]
+    message: Optional[str]
+    error: Optional[str]
+    updated_at: Optional[str]
+
+
+class InterfaceListResponse(TypedDict):
+    """Response for listing interfaces with host info."""
+    host: HostInfo
+    wireguard: List[str]
+
+
 class InterfaceResponse(TypedDict, total=False):
     """Response for interface creation/retrieval."""
     name: str
@@ -51,6 +66,7 @@ class PeerResponse(TypedDict, total=False):
     """Response for peer operations."""
     name: str
     public_key: str
+    private_key: Optional[str]
     allowed_ips: str
     endpoint: str
     warnings: Optional[str]

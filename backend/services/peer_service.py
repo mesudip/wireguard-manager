@@ -40,7 +40,8 @@ class PeerService:
         interface: str, 
         name: str, 
         allowed_ips: str = '10.0.0.2/32',
-        endpoint: str = ''
+        endpoint: str = '',
+        public_key: Optional[str] = None
     ) -> PeerResponse:
         """Add a new peer to an interface."""
         interface_dir = os.path.join(self.base_dir, interface)
@@ -52,14 +53,108 @@ class PeerService:
         if os.path.exists(peer_path):
             raise ValueError("Peer already exists")
         
-        # Validate inputs
+        # Load interface config to check its network
+        if_config_path = os.path.join(interface_dir, f"{interface}.conf")
+        if_config = parse_config(if_config_path)
+        if not if_config:
+            raise ValueError("Could not read interface config")
+        
+        if_address = if_config['Interface'].get('Address', '')
+        if not if_address:
+            raise ValueError("Interface has no Address defined")
+        
+        import ipaddress
+        try:
+            if_net = ipaddress.ip_interface(if_address).network
+        except ValueError:
+            raise ValueError(f"Invalid interface address: {if_address}")
+
+        # Determine if allowed_ips is a subnet/partial or a specific IP
+        is_automatic = False
+        target_network = None
+        
+        if allowed_ips and '/' not in allowed_ips:
+            # Clean parts
+            parts = [p.strip() for p in allowed_ips.split('.') if p.strip()]
+            
+            # Trailing .0 also indicates a subnet/network address
+            if len(parts) < 4 or (len(parts) == 4 and parts[-1] == '0'):
+                is_automatic = True
+                
+                # Determine meaningful parts (exclude trailing zeros for prefix calculation)
+                meaningful_parts = []
+                for p in parts:
+                    if p == '0' and not meaningful_parts: # leading zeros? unlikely but handle
+                        meaningful_parts.append(p)
+                    elif p != '0':
+                        meaningful_parts.append(p)
+                    else:
+                        break # First trailing zero
+                
+                if not meaningful_parts: # just "0" or empty
+                    meaningful_parts = ["0"]
+                
+                prefix_len = 8 * len(meaningful_parts)
+                full_ip = ".".join(parts + ['0'] * (4 - len(parts)))
+                
+                try:
+                    target_network = ipaddress.IPv4Network(f"{full_ip}/{prefix_len}", strict=False)
+                except ValueError:
+                    raise ValueError(f"Invalid subnet format: {allowed_ips}")
+            else:
+                # Looks like a full IP without CIDR, default to /32
+                allowed_ips = f"{allowed_ips}/32"
+
+        if not is_automatic and allowed_ips and '/' in allowed_ips:
+            try:
+                temp_net = ipaddress.ip_network(allowed_ips, strict=False)
+                if temp_net.prefixlen < 32:
+                    is_automatic = True
+                    target_network = temp_net
+            except ValueError:
+                pass
+
+        if is_automatic:
+            # Verify target_network is compatible with if_net
+            # Use overlaps or subnet check
+            if not target_network.overlaps(if_net):
+                 raise ValueError(f"Subnet {target_network} is not a subset of interface network {if_net}")
+            
+            # Find next available IP
+            used_ips = set()
+            # 1. Interface IP
+            used_ips.add(ipaddress.ip_interface(if_address).ip)
+            # 2. Peer IPs
+            for peer in self.list_peers(interface):
+                for ip_str in peer['allowed_ips'].split(','):
+                    try:
+                        used_ips.add(ipaddress.ip_interface(ip_str.strip()).ip)
+                    except ValueError:
+                        continue
+            
+            found_ip = None
+            for host in target_network.hosts():
+                if host not in used_ips:
+                    found_ip = f"{host}/32"
+                    break
+            
+            if not found_ip:
+                raise ValueError(f"No available IPs in subnet {target_network}")
+            
+            allowed_ips = found_ip
+
+        # Validate final inputs
         if allowed_ips:
             allowed_ips = ",".join([a.strip() for a in allowed_ips.split(',') if a.strip()])
         validate_ip_address(allowed_ips, allow_multiple=True)
         validate_endpoint(endpoint)
         
-        # Generate keys for peer
-        private_key, public_key, warnings = generate_keys()
+        private_key = None
+        warnings = None
+        
+        if not public_key:
+            # Generate keys for peer if not provided
+            private_key, public_key, warnings = generate_keys()
         
         # Create peer config
         peer_config: WireGuardConfig = {
@@ -76,6 +171,7 @@ class PeerService:
         return {
             "name": name,
             "public_key": public_key,
+            "private_key": private_key,
             "allowed_ips": allowed_ips,
             "endpoint": endpoint,
             "warnings": warnings

@@ -10,7 +10,7 @@ class APIClient:
         response.raise_for_status()
         return response.json()
 
-    def list_interfaces(self) -> list:
+    def list_interfaces(self) -> Dict[str, Any]:
         response = requests.get(f"{self.base_url}/api/interfaces")
         response.raise_for_status()
         return response.json()
@@ -51,12 +51,14 @@ class APIClient:
     def list_peers(self, interface: str) -> requests.Response:
         return requests.get(f"{self.base_url}/api/interfaces/{interface}/peers")
 
-    def add_peer(self, interface: str, name: str, allowed_ips: str = '10.0.0.2/32', endpoint: str = '') -> requests.Response:
+    def add_peer(self, interface: str, name: str, allowed_ips: str = '10.0.0.2/32', endpoint: str = '', public_key: str = None) -> requests.Response:
         data = {
             "name": name,
             "allowed_ips": allowed_ips,
             "endpoint": endpoint
         }
+        if public_key:
+            data['public_key'] = public_key
         return requests.post(f"{self.base_url}/api/interfaces/{interface}/peers", json=data)
 
     def get_peer(self, interface: str, peer_name: str) -> requests.Response:
@@ -92,3 +94,10 @@ class APIClient:
 
     def get_state_diff(self, interface: str) -> requests.Response:
         return requests.get(f"{self.base_url}/api/interfaces/{interface}/state/diff")
+
+    # Host Info
+    def update_host_info(self, ips: list) -> requests.Response:
+        return requests.post(f"{self.base_url}/api/host/info", json={"ips": ips})
+
+    def rescan_host_info(self) -> requests.Response:
+        return requests.post(f"{self.base_url}/api/host/info/rescan")
