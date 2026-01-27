@@ -39,8 +39,9 @@ class PeerService:
         self, 
         interface: str, 
         name: str, 
-        allowed_ips: str = '10.0.0.2/32',
-        endpoint: str = ''
+        allowed_ips: Optional[str] = None,
+        endpoint: str = '',
+        public_key: Optional[str] = None
     ) -> PeerResponse:
         """Add a new peer to an interface."""
         interface_dir = os.path.join(self.base_dir, interface)
@@ -52,12 +53,119 @@ class PeerService:
         if os.path.exists(peer_path):
             raise ValueError("Peer already exists")
         
-        # Validate inputs
-        validate_ip_address(allowed_ips)
+        # Load interface config to check its network
+        if_config_path = os.path.join(interface_dir, f"{interface}.conf")
+        if_config = parse_config(if_config_path)
+        if not if_config:
+            raise ValueError("Could not read interface config")
+        
+        if_address = if_config['Interface'].get('Address', '')
+        if not if_address:
+            raise ValueError("Interface has no Address defined")
+        
+        import ipaddress
+        try:
+            if_net = ipaddress.ip_interface(if_address).network
+        except ValueError:
+            raise ValueError(f"Invalid interface address: {if_address}")
+
+        # Determine if discovery is requested
+        is_automatic = False
+        target_network = None
+        
+        # If no allowed_ips provided, default to interface network discovery
+        if not allowed_ips:
+            is_automatic = True
+            target_network = if_net
+        
+        # Check for shorthand or CIDR-based discovery (requires single segment for now)
+        if allowed_ips and not is_automatic and ',' not in allowed_ips:
+            if '/' not in allowed_ips and ':' not in allowed_ips:
+                # Clean parts
+                parts = [p.strip() for p in allowed_ips.split('.') if p.strip()]
+                # Determine if it's a subnet discovery request
+                if len(parts) < 4 or (len(parts) == 4 and parts[-1] == '0'):
+                    is_automatic = True
+                    if len(parts) < 4:
+                        prefix_len = 8 * len(parts)
+                    else: 
+                        prefix_len = 24
+                    full_ip = ".".join(parts + ['0'] * (4 - len(parts)))
+                    try:
+                        target_network = ipaddress.IPv4Network(f"{full_ip}/{prefix_len}", strict=False)
+                    except ValueError:
+                        raise ValueError(f"Invalid subnet format: {allowed_ips}")
+            else:
+                # Looks like a CIDR. Only enable discovery if it's a subset of the interface network.
+                try:
+                    temp_net = ipaddress.ip_network(allowed_ips, strict=False)
+                    if temp_net.prefixlen < 32 and temp_net.subnet_of(if_net):
+                        is_automatic = True
+                        target_network = temp_net
+                except ValueError:
+                    pass
+
+        if is_automatic:
+            # Verify target_network is compatible with if_net (must be a subset)
+            # This is primarily for partial IP inputs which are always automatic
+            if not target_network.subnet_of(if_net):
+                 raise ValueError(f"Subnet {target_network} is not a subset of interface network {if_net}. Automatic IP discovery is only possible within the interface network.")
+            
+            # Find next available IP
+            used_ips = set()
+            # 1. Interface IP
+            used_ips.add(ipaddress.ip_interface(if_address).ip)
+            # 2. Peer IPs
+            for peer in self.list_peers(interface):
+                for ip_str in peer['allowed_ips'].split(','):
+                    try:
+                        used_ips.add(ipaddress.ip_interface(ip_str.strip()).ip)
+                    except ValueError:
+                        continue
+            
+            found_ip = None
+            for host in target_network.hosts():
+                if host not in used_ips:
+                    found_ip = f"{host}/32"
+                    break
+            
+            if not found_ip:
+                raise ValueError(f"No available IPs in subnet {target_network}")
+            
+            allowed_ips = found_ip
+        else:
+            # Literal list or IP provided. 
+            # Normalize first
+            if allowed_ips:
+                allowed_ips = ",".join([a.strip() for a in allowed_ips.split(',') if a.strip()])
+            
+            # Ensure at least one listed IP is within the interface subnet
+            is_peer_in_vpn_subnet = False
+            for addr in allowed_ips.split(','):
+                try:
+                    # Use overlaps to check if the address/range has any common ground with the VPN
+                    net = ipaddress.ip_network(addr, strict=False)
+                    if net.overlaps(if_net):
+                        is_peer_in_vpn_subnet = True
+                        break
+                except ValueError:
+                    continue
+            
+            if not is_peer_in_vpn_subnet:
+                 raise ValueError(f"At least one IP address must be within the interface network {if_net}")
+
+        # Validate final inputs
+        if allowed_ips:
+            allowed_ips = ",".join([a.strip() for a in allowed_ips.split(',') if a.strip()])
+        validate_ip_address(allowed_ips, allow_multiple=True)
         validate_endpoint(endpoint)
         
-        # Generate keys for peer
-        private_key, public_key, warnings = generate_keys()
+        private_key = None
+        warnings = None
+        
+        if not public_key:
+            # Generate keys for peer if not provided
+            private_key, public_key, warnings = generate_keys()
         
         # Create peer config
         peer_config: WireGuardConfig = {
@@ -74,6 +182,7 @@ class PeerService:
         return {
             "name": name,
             "public_key": public_key,
+            "private_key": private_key,
             "allowed_ips": allowed_ips,
             "endpoint": endpoint,
             "warnings": warnings
@@ -120,7 +229,35 @@ class PeerService:
         peer_data = peer_config['Peers'][0]
         
         if allowed_ips is not None:
-            validate_ip_address(allowed_ips)
+            if allowed_ips:
+                allowed_ips = ",".join([a.strip() for a in allowed_ips.split(',') if a.strip()])
+            validate_ip_address(allowed_ips, allow_multiple=True)
+            
+            # Subnet overlap check
+            if allowed_ips:
+                import ipaddress
+                # Load interface config to check its network
+                if_config_path = os.path.join(self.base_dir, interface, f"{interface}.conf")
+                if_config = parse_config(if_config_path)
+                if_address = if_config['Interface'].get('Address', '')
+                try:
+                    if_net = ipaddress.ip_interface(if_address).network
+                    is_peer_in_vpn_subnet = False
+                    for addr in allowed_ips.split(','):
+                        try:
+                            # Use overlaps to check if the address/range has any common ground with the VPN
+                            net = ipaddress.ip_network(addr, strict=False)
+                            if net.overlaps(if_net):
+                                is_peer_in_vpn_subnet = True
+                                break
+                        except ValueError:
+                            continue
+                    
+                    if not is_peer_in_vpn_subnet:
+                        raise ValueError(f"At least one IP address must be within the interface network {if_net}")
+                except (ValueError, KeyError):
+                    pass # Interface address issues handled in other parts
+            
             peer_data['AllowedIPs'] = allowed_ips
         if endpoint is not None:
             validate_endpoint(endpoint)

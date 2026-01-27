@@ -80,63 +80,147 @@ def docker_stack(request, docker_client):
         return
 
     # Docker modes
-    image_tag = IMAGE_NAME_STANDARD if mode == "standard" else IMAGE_NAME_SYSTEMD
+    image_tag = f"{IMAGE_NAME_STANDARD}:latest" if mode == "standard" else f"{IMAGE_NAME_SYSTEMD}:latest"
     dockerfile = "Dockerfile" if mode == "standard" else "tests/Dockerfile.systemd"
     
-    print(f"\nBuilding {mode} Docker image {image_tag}...")
-    image, logs = docker_client.images.build(
-        path=os.path.join(os.path.dirname(__file__), ".."),
-        dockerfile=dockerfile,
-        tag=image_tag,
-        nocache=False,
-        rm=True
-    )
-    for log in logs:
-        if 'stream' in log:
-            print(log['stream'].strip())
+    in_ci = os.environ.get("GITHUB_ACTIONS", "false").lower() == "true"
+    force_build = os.environ.get("WG_TEST_FORCE_BUILD", "false").lower() == "true"
+    
+    image_exists = False
+    if in_ci and not force_build:
+        try:
+            docker_client.images.get(image_tag)
+            print(f"\nUsing pre-existing Docker image {image_tag}")
+            image_exists = True
+        except docker.errors.ImageNotFound:
+            pass
+
+    if not image_exists:
+        print(f"\nBuilding {mode} Docker image {image_tag}...")
+        image, logs = docker_client.images.build(
+            path=os.path.join(os.path.dirname(__file__), ".."),
+            dockerfile=dockerfile,
+            tag=image_tag,
+            nocache=False,
+            rm=True
+        )
+        for log in logs:
+            if 'stream' in log:
+                print(log['stream'].strip())
 
     container_name = f"wg-test-{mode}-{uuid.uuid4().hex[:8]}"
     print(f"Starting {mode} container {container_name}...")
+    
+    env = {}
+    if mode == "standard":
+        env = {
+            "WG_WIREGUARD_USE_SYSTEMD": "false",
+            "WG_WIREGUARD_USE_SUDO": "false",
+            "WG_WIREGUARD_BASE_DIR": "/etc/wireguard"
+        }
     
     kwargs = {
         "detach": True,
         "name": container_name,
         "ports": {'5000/tcp': None},
-        "privileged": True
+        "cap_add": ["NET_ADMIN", "SYS_MODULE", "SYS_ADMIN"],
+        "environment": env
     }
     
     if mode == "systemd":
-        kwargs["volumes"] = {'/sys/fs/cgroup': {'bind': '/sys/fs/cgroup', 'mode': 'rw'}}
-        kwargs["tmpfs"] = {'/run': '', '/run/lock': '', '/tmp': '', '/run/wireguard': ''}
+        # Add systemd debugging environment variables
+        env["SYSTEMD_LOG_LEVEL"] = "debug"
+        env["SYSTEMD_SHOW_STATUS"] = "true"
+        env["SYSTEMD_IGNORE_CHROOT"] = "1"
+        
+        kwargs["privileged"] = True
+        kwargs["volumes"] = {
+            '/sys/fs/cgroup': {'bind': '/sys/fs/cgroup', 'mode': 'rw'},
+            '/lib/modules': {'bind': '/lib/modules', 'mode': 'ro'},
+            '/sys/kernel/config': {'bind': '/sys/kernel/config', 'mode': 'ro'},
+            '/sys/fs/fuse': {'bind': '/sys/fs/fuse', 'mode': 'rw'}
+        }
+        # Refined tmpfs for systemd 248+ (required for Ubuntu 24.04 base)
+        kwargs["tmpfs"] = {
+            '/run': 'rw,nosuid,nodev,mode=755',
+            '/run/lock': 'rw,nosuid,nodev,noexec,relatime,size=5m',
+            '/tmp': 'rw,nosuid,nodev'
+        }
         kwargs["cgroupns_mode"] = "host"
+        # Disable security restrictors which often block systemd PID 1 in GHA
+        kwargs["security_opt"] = ["seccomp=unconfined", "apparmor=unconfined"]
+    
+    # Move cgroupns_mode to host_config if present
+    if "cgroupns_mode" in kwargs:
+        # cgroupns_mode should be in host_config, not main kwargs
+        host_config_kwargs = {}
+        # We'll need to manually handle this since the library doesn't recognize it
+        cgroupns_mode = kwargs.pop("cgroupns_mode")
+        # For now, let's try without it since it's not critical
+        pass
     
     try:
         container = docker_client.containers.run(image_tag, **kwargs)
-    except TypeError as e:
-        if 'cgroupns_mode' in str(e) and mode == "systemd":
-            del kwargs['cgroupns_mode']
-            container = docker_client.containers.run(image_tag, **kwargs)
-        else:
-            raise
+    except Exception as e:
+        print(f"\nCRITICAL: Failed to start {mode} container. Error: {e}")
+        print(f"Kwargs used: {kwargs}")
+        raise
 
+    # Give systemd a bit more time to reach the socket-binding stage
+    time.sleep(5)
     container.reload()
+    
+    # 5. Get assigned port
     ports = container.attrs['NetworkSettings']['Ports']
+    if not ports or '5000/tcp' not in ports or not ports['5000/tcp']:
+        # Fallback/Retry reload if ports are missing (sometimes happens in slow CI)
+        time.sleep(2)
+        container.reload()
+        ports = container.attrs['NetworkSettings']['Ports']
+        
+    if not ports or '5000/tcp' not in ports or not ports['5000/tcp']:
+        state = container.attrs.get('State', {})
+        status = state.get('Status', 'unknown')
+        exit_code = state.get('ExitCode', 'N/A')
+        error = state.get('Error', 'N/A')
+        
+        try:
+            # Explicitly fetch both stdout and stderr
+            logs_raw = container.logs(stdout=True, stderr=True, tail=300)
+            logs = logs_raw.decode('utf-8', errors='replace')
+        except Exception as e:
+            logs = f"Failed to fetch logs: {e}"
+            
+        container_info = (
+            f"\n--- CONTAINER FAILURE INFO ---\n"
+            f"Container: {container_name} ({mode})\n"
+            f"Status: {status}\n"
+            f"ExitCode: {exit_code}\n"
+            f"Error: {error}\n"
+            f"--- CONTAINER LOGS (STDOUT+STDERR) ---\n"
+            f"{logs}\n"
+            f"---------------------------\n"
+        )
+        print(container_info)
+        container.remove(force=True)
+        pytest.fail(f"Could not get host port for {mode} container. See logs above.")
+
     host_port = ports['5000/tcp'][0]['HostPort']
     host = get_docker_host()
     base_url = f"http://{host}:{host_port}"
     
     try:
-        wait_for_ready(base_url, mode)
+        wait_for_ready(base_url, mode, container)
         yield base_url
     finally:
         print(f"\nStopping container {container_name}...")
         container.remove(force=True)
 
-def wait_for_ready(base_url, mode):
+def wait_for_ready(base_url, mode, container=None):
     print(f"Waiting for {mode} API to be ready at {base_url}...")
     start_time = time.time()
     ready = False
-    timeout = 90 if "systemd" in mode else 30
+    timeout = 120 if "systemd" in mode else 45
     while time.time() - start_time < timeout:
         try:
             response = requests.get(f"{base_url}/api/health", timeout=2)
@@ -145,9 +229,34 @@ def wait_for_ready(base_url, mode):
                 ready = True
                 break
         except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+            # Check if container died while waiting
+            if container:
+                container.reload()
+                if container.attrs.get('State', {}).get('Status') == 'exited':
+                    break
             time.sleep(2)
     
     if not ready:
+        if container:
+            container.reload()
+            current_status = container.attrs.get('State', {}).get('Status', 'unknown')
+            print(f"Readiness failed. Container status: {current_status}")
+            
+            try:
+                # 1. Try standard logs
+                logs_raw = container.logs(stdout=True, stderr=True, tail=300)
+                logs = logs_raw.decode('utf-8', errors='replace')
+                print(f"\n--- API READINESS FAILURE LOGS ({mode}) ---\n{logs}\n--- END LOGS ---")
+                
+                # 2. If systemd, try journalctl (often has the real info)
+                if "systemd" in mode and current_status == "running":
+                    print(f"Attempting to fetch journalctl output from {mode} container...")
+                    result = container.exec_run("journalctl -n 100 --no-pager")
+                    journal = result.output.decode('utf-8', errors='replace')
+                    print(f"\n--- INTERNAL SYSTEMD JOURNAL ---\n{journal}\n--- END JOURNAL ---")
+            except Exception as e:
+                print(f"Failed to fetch detailed logs for {mode} container: {e}")
+                
         pytest.fail(f"API ({mode}) did not become ready in time at {base_url}.")
 
 def pytest_generate_tests(metafunc):

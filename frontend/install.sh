@@ -13,21 +13,8 @@ NC='\033[0m' # No Color
 
 # Configuration
 STATIC_INSTALL_DIR="/lib/wireguard/backend"
-FRONTEND_DIR="frontend"
-FRONTEND_DIST="$FRONTEND_DIR/dist"
+FRONTEND_DIST="dist"
 BACKEND_DIR="backend"
-
-# Error handler for stylized failure reporting
-error_handler() {
-    local exit_code=$?
-    echo -e "\n${RED}================================================${NC}"
-    echo -e "${RED}✗ WireGuard Manager installation failed!${NC}"
-    echo -e "${RED}================================================${NC}"
-    echo -e "${RED}Error occurred on line $(caller | cut -d' ' -f1)${NC}"
-    exit $exit_code
-}
-
-trap 'error_handler' ERR
 
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then 
@@ -49,24 +36,23 @@ else
         echo "You can install Node.js from: https://nodejs.org/"
         exit 1
     fi
-
-    # Check if yarn is installed
-    if ! command -v yarn &> /dev/null; then
-        echo -e "${RED}Error: yarn is not installed. Please install yarn first.${NC}"
-        echo "You can install it with: npm install --global yarn"
+    
+    # Check if npm is installed
+    if ! command -v npm &> /dev/null; then
+        echo -e "${RED}Error: npm is not installed. Please install npm first.${NC}"
         exit 1
     fi
     
     # Install dependencies
     echo -e "${YELLOW}Installing frontend dependencies...${NC}"
-    (cd "$FRONTEND_DIR" && yarn)
+    npm install
     
     # Build the frontend
     echo -e "${YELLOW}Building frontend...${NC}"
-    (cd "$FRONTEND_DIR" && yarn build)
+    npm run build
     
     # Verify build was successful
-    if [ ! -d "$FRONTEND_DIST" ] || [ ! "$(ls -A "$FRONTEND_DIST")" ]; then
+    if [ ! -d "$FRONTEND_DIST" ] || [ ! "$(ls -A $FRONTEND_DIST)" ]; then
         echo -e "${RED}Error: Build failed. $FRONTEND_DIST directory is empty or does not exist.${NC}"
         exit 1
     fi

@@ -19,6 +19,7 @@ from services.interface_service import InterfaceService
 from services.peer_service import PeerService
 from services.config_service import ConfigService
 from services.state_service import StateService
+from services.host_info_service import HostInfoService
 from routes.interface_routes import create_interface_routes
 from routes.peer_routes import create_peer_routes
 from routes.config_routes import create_config_routes
@@ -60,17 +61,25 @@ else:
 
 # Set sudo configuration
 set_auto_sudo(config.wireguard_use_sudo)
-logger.info(f"Automatic sudo usage: {config.wireguard_use_sudo}")
+logger.debug(f"Automatic sudo usage: {config.wireguard_use_sudo}")
 
 BASE_DIR = config.wireguard_base_dir
 Path(BASE_DIR).mkdir(parents=True, exist_ok=True)
 
 interface_service = InterfaceService(BASE_DIR)
 peer_service = PeerService(BASE_DIR)
-config_service = ConfigService(BASE_DIR)
+config_service = ConfigService(BASE_DIR, use_systemd=config.wireguard_use_systemd)
 state_service = StateService(BASE_DIR)
+host_info_service = HostInfoService(BASE_DIR)
 
-interface_bp = create_interface_routes(interface_service)
+# Update host info on startup
+try:
+    logger.info("Discovering host public IP addresses...")
+    host_info_service.update_host_info()
+except Exception as e:
+    logger.error(f"Failed to update host info on startup: {e}")
+
+interface_bp = create_interface_routes(interface_service, host_info_service)
 peer_bp = create_peer_routes(peer_service)
 config_bp = create_config_routes(config_service)
 state_bp = create_state_routes(state_service)
@@ -98,7 +107,7 @@ swaggerui_blueprint = get_swaggerui_blueprint(
 )
 
 app.register_blueprint(swaggerui_blueprint, url_prefix=SWAGGER_URL)
-logger.info(f"Swagger UI configured at {SWAGGER_URL}")
+logger.debug(f"Swagger UI configured at {SWAGGER_URL}")
 
 @app.before_request
 def initialize_command_logs():

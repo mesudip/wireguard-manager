@@ -10,8 +10,9 @@ from utils.command import run_command
 
 
 class ConfigService:
-    def __init__(self, base_dir: str):
+    def __init__(self, base_dir: str, use_systemd: bool = True):
         self.base_dir = base_dir
+        self.use_systemd = use_systemd
     
     def sync_config(self, interface: str) -> str:
         """Generate the final config file from the interface folder."""
@@ -91,12 +92,18 @@ class ConfigService:
                 if peer_config and peer_config.get('Peers'):
                     config['Peers'].extend(peer_config['Peers'])
         
+        # Sort peers by PublicKey for consistent diff output
+        config['Peers'].sort(key=lambda x: x.get('PublicKey', ''))
+        
         # Get final config if exists
         final_config: WireGuardConfig = {"Interface": {}, "Peers": []}
         if os.path.exists(final_config_path):
             parsed = parse_config(final_config_path)
             if parsed:
                 final_config = parsed
+        
+        # Sort peers in final config as well
+        final_config['Peers'].sort(key=lambda x: x.get('PublicKey', ''))
         
         # Generate diff
         folder_lines = json.dumps(config, indent=2, sort_keys=True).splitlines()
@@ -148,10 +155,15 @@ class ConfigService:
                     warnings.append(result.stderr.decode())
             except subprocess.CalledProcessError as e:
                 error_msg = e.stderr.decode() if e.stderr else str(e)
-                if "No such device" in error_msg:
-                    # If the interface doesn't exist, try to bring it up with wg-quick
-                    # wg-quick needs the full config (with Address)
-                    result = run_command(["wg-quick", "up", final_config_path])
+                if "No such device" in error_msg or "not found" in error_msg.lower():
+                    # If the interface doesn't exist, bring it up
+                    if self.use_systemd:
+                        # Try systemctl start wg-quick@<interface>
+                        result = run_command(["systemctl", "restart", f"wg-quick@{interface}"])
+                    else:
+                        # Direct wg-quick up
+                        result = run_command(["wg-quick", "up", final_config_path])
+                        
                     if result.stderr:
                         warnings.append(result.stderr.decode())
                 else:

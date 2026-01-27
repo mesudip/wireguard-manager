@@ -4,11 +4,12 @@ from exceptions.wireguard_exceptions import (
     InterfaceNotFoundException,
     ConfigurationException
 )
+from services.host_info_service import HostInfoService
 
 interface_bp = Blueprint('interfaces', __name__)
 
 
-def create_interface_routes(interface_service: InterfaceService):
+def create_interface_routes(interface_service: InterfaceService, host_info_service: HostInfoService):
     """Create interface routes with dependency injection."""
     
     @interface_bp.route('/interfaces', methods=['GET'])
@@ -29,7 +30,16 @@ def create_interface_routes(interface_service: InterfaceService):
                     items: {"$ref": "#/components/schemas/Interface"}
         """
         interfaces = interface_service.list_interfaces()
-        return jsonify(interfaces)
+        host_info = host_info_service.get_host_info()
+        
+        response = {
+            "host": {
+                "ips": host_info.get("ips", []),
+                "message": host_info.get("message") or host_info.get("error")
+            },
+            "wireguard": interfaces
+        }
+        return jsonify(response)
     
     @interface_bp.route('/interfaces', methods=['POST'])
     def create_interface():
@@ -65,7 +75,10 @@ def create_interface_routes(interface_service: InterfaceService):
         result = interface_service.create_interface(
             name=interface_name,
             address=data.get('address', '10.0.0.1/24'),
-            listen_port=data.get('listen_port', '51820')
+            listen_port=data.get('listen_port', '51820'),
+            post_up=data.get('post_up'),
+            post_down=data.get('post_down'),
+            dns=data.get('dns')
         )
         return jsonify(result), 201
     
@@ -136,7 +149,10 @@ def create_interface_routes(interface_service: InterfaceService):
         interface_service.update_interface(
             name=interface,
             address=data.get('address'),
-            listen_port=data.get('listen_port')
+            listen_port=data.get('listen_port'),
+            post_up=data.get('post_up'),
+            post_down=data.get('post_down'),
+            dns=data.get('dns')
         )
         return jsonify({"message": "Interface updated successfully"})
     
@@ -170,5 +186,54 @@ def create_interface_routes(interface_service: InterfaceService):
         """
         interface_service.delete_interface(interface)
         return jsonify({"message": "Interface deleted successfully"})
+
+    @interface_bp.route('/host/info', methods=['POST'])
+    def update_host_info():
+        """Update host info manually.
+        ---
+        post:
+          tags: ["Host Info"]
+          summary: Update host info manually
+          description: Manually set the host's public IP addresses. This sets the 'manual' flag to true.
+          requestBody:
+            required: true
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    ips:
+                      type: array
+                      items:
+                        type: string
+          responses:
+            200:
+              description: Host info updated successfully
+              content:
+                application/json:
+                  schema: {"$ref": "#/components/schemas/HostInfo"}
+        """
+        data = request.json
+        ips = data.get('ips', [])
+        result = host_info_service.save_host_info(ips, manual=True)
+        return jsonify(result)
+
+    @interface_bp.route('/host/info/rescan', methods=['POST'])
+    def rescan_host_info():
+        """Rescan host info.
+        ---
+        post:
+          tags: ["Host Info"]
+          summary: Rescan host info
+          description: Force a re-discovery of host's public IP addresses. This sets the 'manual' flag to false.
+          responses:
+            200:
+              description: Host info rescanned successfully
+              content:
+                application/json:
+                  schema: {"$ref": "#/components/schemas/HostInfo"}
+        """
+        result = host_info_service.update_host_info(force=True)
+        return jsonify(result)
     
     return interface_bp

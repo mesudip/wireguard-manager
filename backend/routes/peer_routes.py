@@ -86,8 +86,9 @@ def create_peer_routes(peer_service: PeerService):
             result = peer_service.add_peer(
                 interface=interface,
                 name=peer_name,
-                allowed_ips=data.get('allowed_ips', '10.0.0.2/32'),
-                endpoint=data.get('endpoint', '')
+                allowed_ips=data.get('allowed_ips'),
+                endpoint=data.get('endpoint', ''),
+                public_key=data.get('public_key')
             )
             return jsonify(result), 201
         except FileNotFoundError:

@@ -19,7 +19,7 @@ from utils.validators import (
 class InterfaceService:
     def __init__(self, base_dir: str):
         self.base_dir = base_dir
-        Path(base_dir).mkdir(parents=True, exist_ok=True)
+        Path(base_dir).mkdir(parents=True, exist_ok=True, mode=0o750)
     
     def list_interfaces(self) -> List[str]:
         """List all WireGuard interfaces."""
@@ -35,11 +35,14 @@ class InterfaceService:
         self, 
         name: str, 
         address: str = '10.0.0.1/24', 
-        listen_port: str = '51820'
+        listen_port: str = '51820',
+        post_up: Optional[str] = None,
+        post_down: Optional[str] = None,
+        dns: Optional[str] = None
     ) -> InterfaceResponse:
         """Create a new WireGuard interface."""
         validate_interface_name(name)
-        validate_ip_address(address)
+        validate_ip_address(address, allow_multiple=False)
         validate_port(listen_port)
         
         interface_dir = os.path.join(self.base_dir, name)
@@ -47,7 +50,7 @@ class InterfaceService:
         if os.path.exists(interface_dir):
             raise ConfigurationException(f"Interface '{name}' already exists")
         
-        os.makedirs(interface_dir, exist_ok=True)
+        os.makedirs(interface_dir, exist_ok=True, mode=0o750)
         
         # Generate keys
         private_key, public_key, warnings = generate_keys()
@@ -62,6 +65,14 @@ class InterfaceService:
             "Peers": []
         }
         
+        # Add optional fields if provided
+        if post_up:
+            config['Interface']['PostUp'] = post_up
+        if post_down:
+            config['Interface']['PostDown'] = post_down
+        if dns:
+            config['Interface']['DNS'] = dns
+        
         config_path = os.path.join(interface_dir, f"{name}.conf")
         write_config(config_path, config)
         
@@ -70,6 +81,9 @@ class InterfaceService:
             "public_key": public_key,
             "address": address,
             "listen_port": listen_port,
+            "post_up": post_up,
+            "post_down": post_down,
+            "dns": dns,
             "warnings": warnings
         }
     
@@ -89,12 +103,15 @@ class InterfaceService:
         private_key = config['Interface'].get('PrivateKey', '')
         public_key, warnings = get_public_key(private_key) if private_key else ('', None)
         
+        # SECURITY: Never return the config object or private key to the frontend
         return {
             "name": name,
             "public_key": public_key,
             "address": config['Interface'].get('Address', ''),
             "listen_port": config['Interface'].get('ListenPort', ''),
-            "config": config,
+            "post_up": config['Interface'].get('PostUp'),
+            "post_down": config['Interface'].get('PostDown'),
+            "dns": config['Interface'].get('DNS'),
             "warnings": warnings
         }
     
@@ -102,10 +119,13 @@ class InterfaceService:
         self, 
         name: str, 
         address: Optional[str] = None, 
-        listen_port: Optional[str] = None
+        listen_port: Optional[str] = None,
+        post_up: Optional[str] = None,
+        post_down: Optional[str] = None,
+        dns: Optional[str] = None
     ) -> None:
         """Update a specific interface."""
-        validate_ip_address(address)
+        validate_ip_address(address, allow_multiple=False)
         validate_port(listen_port)
         
         interface_dir = os.path.join(self.base_dir, name)
@@ -123,6 +143,21 @@ class InterfaceService:
             config['Interface']['Address'] = address
         if listen_port is not None:
             config['Interface']['ListenPort'] = str(listen_port)
+        if post_up is not None:
+            if post_up:
+                config['Interface']['PostUp'] = post_up
+            elif 'PostUp' in config['Interface']:
+                del config['Interface']['PostUp']
+        if post_down is not None:
+            if post_down:
+                config['Interface']['PostDown'] = post_down
+            elif 'PostDown' in config['Interface']:
+                del config['Interface']['PostDown']
+        if dns is not None:
+            if dns:
+                config['Interface']['DNS'] = dns
+            elif 'DNS' in config['Interface']:
+                del config['Interface']['DNS']
         
         write_config(config_path, config)
     

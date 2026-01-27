@@ -19,7 +19,7 @@ def test_interface_lifecycle(api_client):
     assert response.json()['name'] == interface_name
     
     # 3. List
-    assert interface_name in api_client.list_interfaces()
+    assert interface_name in api_client.list_interfaces()['wireguard']
 
     # 4. Update
     api_client.update_interface(interface_name, address="10.10.10.2/24")

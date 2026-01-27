@@ -3,11 +3,14 @@
 from typing import TypedDict, List, Optional, Dict, Any
 
 
-class InterfaceConfig(TypedDict):
+class InterfaceConfig(TypedDict, total=False):
     """WireGuard [Interface] section configuration."""
     PrivateKey: str
     Address: str
     ListenPort: str
+    PostUp: Optional[str]
+    PostDown: Optional[str]
+    DNS: Optional[str]
 
 
 class PeerConfig(TypedDict):
@@ -32,25 +35,44 @@ class CommandLog(TypedDict):
     stderr: str
 
 
+class HostInfo(TypedDict, total=False):
+    """Host public IP information."""
+    ips: List[str]
+    manual: Optional[bool]
+    message: Optional[str]
+    error: Optional[str]
+    updated_at: Optional[str]
+
+
+class InterfaceListResponse(TypedDict):
+    """Response for listing interfaces with host info."""
+    host: HostInfo
+    wireguard: List[str]
+
+
 class InterfaceResponse(TypedDict, total=False):
     """Response for interface creation/retrieval."""
     name: str
     public_key: str
     address: str
     listen_port: str
+    post_up: Optional[str]
+    post_down: Optional[str]
+    dns: Optional[str]
     warnings: Optional[str]
     commands: Optional[List[CommandLog]]
 
 
 class InterfaceDetailResponse(InterfaceResponse):
-    """Detailed interface response with full config."""
-    config: WireGuardConfig
+    """Detailed interface response (same as InterfaceResponse, no config exposed)."""
+    pass
 
 
 class PeerResponse(TypedDict, total=False):
     """Response for peer operations."""
     name: str
     public_key: str
+    private_key: Optional[str]
     allowed_ips: str
     endpoint: str
     warnings: Optional[str]

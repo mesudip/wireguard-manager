@@ -19,6 +19,18 @@ VENV_DIR="$INSTALL_DIR/venv"
 CONFIG_FILE="/etc/wireguard/backend.conf"
 STATIC_DIR="/lib/wireguard/backend"
 
+# Error handler for stylized failure reporting
+error_handler() {
+    local exit_code=$?
+    echo -e "\n${RED}================================================${NC}"
+    echo -e "${RED}✗ WireGuard Manager installation failed!${NC}"
+    echo -e "${RED}================================================${NC}"
+    echo -e "${RED}Error occurred on line $(caller | cut -d' ' -f1)${NC}"
+    exit $exit_code
+}
+
+trap 'error_handler' ERR
+
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then 
     echo -e "${RED}Error: This script must be run as root${NC}"
@@ -38,9 +50,15 @@ for dep in "${DEPS[@]}"; do
             "python3") MISSING_DEPS+=("python3") ;;
             "pip3") MISSING_DEPS+=("python3-pip") ;;
             "python3-venv") 
-                # On debian/ubuntu, it's often a separate package if not included
+                # On debian/ubuntu, it's often a separate package.
+                # We need the version-specific one (e.g. python3.12-venv) to ensure ensurepip is present.
                 if ! python3 -m venv --help &> /dev/null; then
-                    MISSING_DEPS+=("python3-venv")
+                    if command -v python3 &> /dev/null; then
+                        PY_VER=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+                        MISSING_DEPS+=("python${PY_VER}-venv")
+                    else
+                        MISSING_DEPS+=("python3-venv")
+                    fi
                 fi
                 ;;
             "wg") MISSING_DEPS+=("wireguard-tools") ;;

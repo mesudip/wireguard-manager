@@ -39,6 +39,19 @@ This will:
 
 After installation, access the application at `http://your-server-ip:5000`
 
+### Docker Setup (Recommended for Containers)
+
+You can run WireGuard Manager in a Docker container using the provided `docker-compose.yml`.
+
+1. Build and start the containers:
+```bash
+docker-compose up -d
+```
+
+**Requirements:**
+- The container must run with `NET_ADMIN` capability and `network_mode: host` to manage WireGuard interfaces on the host.
+- `/etc/wireguard` is mounted by default to persist configurations.
+
 ### Manual Setup (Development)
 
 #### Backend Setup
@@ -71,32 +84,37 @@ The API will be available at `http://localhost:5000`
 
 #### Frontend Setup
 
-1. Install dependencies:
+1. Navigate to the frontend directory:
+```bash
+cd frontend
+```
+
+2. Install dependencies:
 ```bash
 npm install
 ```
 
-2. Create environment file:
+3. Create environment file:
 ```bash
 cp .env.example .env.local
 ```
 
-3. Update the API URL in `.env.local`:
+4. Update the API URL in `.env.local`:
 ```
 NEXT_PUBLIC_API_URL=http://localhost:5000/api
 ```
 
-4. Run development server:
+5. Run development server:
 ```bash
 npm run dev
 ```
 
-5. Build static site:
+6. Build static site:
 ```bash
 npm run build
 ```
 
-The static files will be in the `dist` directory.
+The static files will be in the `frontend/dist` directory.
 
 ## Configuration
 
