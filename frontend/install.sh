@@ -13,8 +13,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 STATIC_INSTALL_DIR="/lib/wireguard/backend"
-FRONTEND_DIR="frontend"
-FRONTEND_DIST="$FRONTEND_DIR/dist"
+FRONTEND_DIST="dist"
 BACKEND_DIR="backend"
 
 # Check if running as root
@@ -46,14 +45,14 @@ else
     
     # Install dependencies
     echo -e "${YELLOW}Installing frontend dependencies...${NC}"
-    (cd "$FRONTEND_DIR" && npm install)
+    npm install
     
     # Build the frontend
     echo -e "${YELLOW}Building frontend...${NC}"
-    (cd "$FRONTEND_DIR" && npm run build)
+    npm run build
     
     # Verify build was successful
-    if [ ! -d "$FRONTEND_DIST" ] || [ ! "$(ls -A "$FRONTEND_DIST")" ]; then
+    if [ ! -d "$FRONTEND_DIST" ] || [ ! "$(ls -A $FRONTEND_DIST)" ]; then
         echo -e "${RED}Error: Build failed. $FRONTEND_DIST directory is empty or does not exist.${NC}"
         exit 1
     fi

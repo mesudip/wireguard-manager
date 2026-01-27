@@ -3,6 +3,7 @@
 export interface Peer {
     name: string;
     publicKey: string;
+    privateKey: string | null;
     allowedIPs: string;
     endpoint: string;
     latestHandshake: string; // Formatted string
@@ -16,6 +17,7 @@ export interface Peer {
 export interface ConfigPeer {
     name: string;
     publicKey: string;
+    privateKey: string | null;
     allowedIPs: string;
     endpoint: string | null;
 }
@@ -49,6 +51,13 @@ export interface DiffResult {
     hasChanges: boolean;
 }
 
+export interface HostInfo {
+    ips: string[];
+    message?: string;
+    manual?: boolean;
+}
+
+
 // --- API Response Types (snake_case) ---
 
 export interface ApiInterface {
@@ -58,9 +67,15 @@ export interface ApiInterface {
     listen_port: number;
 }
 
+export interface ApiInterfaceListResponse {
+    host: HostInfo;
+    wireguard: string[];
+}
+
 export interface ApiPeer {
     name: string;
     public_key: string;
+    private_key: string | null;
     allowed_ips: string;
     endpoint: string | null;
 }

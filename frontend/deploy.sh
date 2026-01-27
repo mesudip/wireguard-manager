@@ -23,8 +23,7 @@ rsync -ravz --delete \
   --exclude '.pytest_cache/' \
   --exclude 'venv/' \
   --exclude 'out' \
-  --exclude 'frontend/node_modules/' \
-  --exclude 'frontend/dist/' \
+  --exclude 'node_modules/' \
   --exclude '.next/' \
   --exclude '__pycache__/' \
   --exclude '*.pyc' \

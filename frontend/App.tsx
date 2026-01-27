@@ -1,11 +1,11 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Interface, Peer, InterfaceState, DiffResult, StatePeer } from './types';
+import { Interface, Peer, InterfaceState, DiffResult, StatePeer, HostInfo } from './types';
 import * as api from './services/api';
 import { formatBytes, formatHandshake } from './utils';
 import InterfaceList from './components/InterfaceList';
 import InterfaceDetail from './components/InterfaceDetail';
-import { PlusIcon, ServerIcon, SunIcon, MoonIcon } from './components/icons/Icons';
+import { PlusIcon, ServerIcon, SunIcon, MoonIcon, PencilIcon, ExclamationIcon, RefreshIcon } from './components/icons/Icons';
 import Modal from './components/Modal';
 
 const App: React.FC = () => {
@@ -21,6 +21,13 @@ const App: React.FC = () => {
     const [newInterfaceName, setNewInterfaceName] = useState('');
     const [newInterfaceAddress, setNewInterfaceAddress] = useState('10.0.1.1/24');
     const [newInterfacePort, setNewInterfacePort] = useState('51820');
+    const [hostInfo, setHostInfo] = useState<HostInfo | null>(null);
+
+    const [isHostEditModalOpen, setHostEditModalOpen] = useState(false);
+    const [editedHostIPs, setEditedHostIPs] = useState('');
+    const [isSavingHostIPs, setIsSavingHostIPs] = useState(false);
+    const [isRescanningHostIPs, setIsRescanningHostIPs] = useState(false);
+    const [hostEditError, setHostEditError] = useState<string | null>(null);
 
     const [theme, setTheme] = useState(() =>
         document.documentElement.classList.contains('dark') ? 'dark' : 'light'
@@ -43,11 +50,12 @@ const App: React.FC = () => {
             setIsLoading(true);
             setError(null);
             const data = await api.getInterfaces();
-            setInterfaces(data);
-            if (data.length > 0 && !selectedInterface) {
+            setInterfaces(data.interfaces);
+            setHostInfo(data.hostInfo);
+            if (data.interfaces.length > 0 && !selectedInterface) {
                 // Automatically select the first interface if none is selected
-                handleSelectInterface(data[0]);
-            } else if (data.length === 0) {
+                handleSelectInterface(data.interfaces[0]);
+            } else if (data.interfaces.length === 0) {
                 setSelectedInterface(null);
                 setPeers([]);
                 setInterfaceState(null);
@@ -86,12 +94,13 @@ const App: React.FC = () => {
                 return {
                     name: cp.name,
                     publicKey: cp.publicKey,
+                    privateKey: cp.privateKey,
                     allowedIPs: cp.allowedIPs,
-                    endpoint: sp?.endpoint || cp.endpoint || 'N/A',
+                    endpoint: sp?.endpoint || cp.endpoint || '',
                     latestHandshake: sp ? formatHandshake(sp.latestHandshake) : 'Never',
                     transfer: {
-                        received: sp ? formatBytes(sp.transferRx) : '0 B',
-                        sent: sp ? formatBytes(sp.transferTx) : '0 B',
+                        received: formatBytes(sp?.transferRx),
+                        sent: formatBytes(sp?.transferTx),
                     }
                 };
             });
@@ -136,6 +145,61 @@ const App: React.FC = () => {
         }
     };
 
+    const handleDeleteInterface = async (name: string) => {
+        if (window.confirm(`Are you sure you want to delete the interface "${name}"? This action cannot be undone.`)) {
+            try {
+                await api.deleteInterface(name);
+                setSelectedInterface(null); 
+                await fetchInterfaces();
+            } catch (err) {
+                setError(err instanceof Error ? err.message : `Failed to delete interface ${name}.`);
+                console.error(err);
+            }
+        }
+    };
+    
+    const handleOpenHostEditModal = () => {
+        if (hostInfo) {
+            setEditedHostIPs(hostInfo.ips.join('\n'));
+            setHostEditError(null);
+            setHostEditModalOpen(true);
+        }
+    };
+
+    const handleSaveHostIPs = async () => {
+        setHostEditError(null);
+        setIsSavingHostIPs(true);
+        const newIPs = editedHostIPs.split(/[\s,\n]+/).map(ip => ip.trim()).filter(Boolean);
+        
+        try {
+            const updatedHostInfo = await api.updateHostIPs(newIPs);
+            setHostInfo(updatedHostInfo);
+            setHostEditModalOpen(false);
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
+            setHostEditError(errorMessage);
+            console.error(err);
+        } finally {
+            setIsSavingHostIPs(false);
+        }
+    };
+
+    const handleRescanHostIPs = async () => {
+        setHostEditError(null);
+        setIsRescanningHostIPs(true);
+        try {
+            const updatedHostInfo = await api.rescanHostIPs();
+            setHostInfo(updatedHostInfo);
+            setEditedHostIPs(updatedHostInfo.ips.join('\n'));
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
+            setHostEditError(errorMessage);
+            console.error(err);
+        } finally {
+            setIsRescanningHostIPs(false);
+        }
+    };
+
     const refreshData = () => {
         if (selectedInterface) {
             handleSelectInterface(selectedInterface);
@@ -171,11 +235,39 @@ const App: React.FC = () => {
                     selectedInterface={selectedInterface}
                     onSelect={handleSelectInterface}
                 />
+                 <div className="mt-auto pt-4 border-t border-gray-200/50 dark:border-gray-700/50 text-xs text-gray-500 dark:text-gray-400">
+                    <div className="flex justify-between items-center mb-1">
+                         <p className="font-semibold">
+                            Host Information
+                            {hostInfo && typeof hostInfo.manual !== 'undefined' && (
+                                <span className="ml-2 text-xs font-normal text-gray-400 dark:text-gray-500">
+                                    ({hostInfo.manual ? 'manual' : 'auto'})
+                                </span>
+                            )}
+                        </p>
+                        {hostInfo && (
+                            <button onClick={handleOpenHostEditModal} className="p-1 rounded text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200/60 dark:hover:bg-gray-700/60 transition-colors">
+                                <PencilIcon className="w-4 h-4"/>
+                            </button>
+                        )}
+                    </div>
+                    {hostInfo ? (
+                         <div className="space-y-1 max-h-24 overflow-y-auto pr-1">
+                            {hostInfo.ips && hostInfo.ips.length > 0 ? hostInfo.ips.map(ip => (
+                                <p key={ip} className="font-mono truncate" title={ip}>{ip}</p>
+                            )) : <p>No public IPs found</p>}
+                            {hostInfo.message && <p className="text-gray-400 dark:text-gray-500 text-xs mt-1">{hostInfo.message}</p>}
+                         </div>
+                    ) : (
+                        <p>Loading host info...</p>
+                    )}
+                </div>
             </aside>
             <main className="flex-1 p-6 overflow-y-auto">
                 {selectedInterface ? (
                     <InterfaceDetail
                         interface={selectedInterface}
+                        hostInfo={hostInfo}
                         peers={peers}
                         interfaceState={interfaceState}
                         configDiff={configDiff}
@@ -183,6 +275,7 @@ const App: React.FC = () => {
                         isLoading={isLoading}
                         error={error}
                         refreshData={refreshData}
+                        onDeleteInterface={handleDeleteInterface}
                     />
                 ) : (
                     <div className="flex items-center justify-center h-full">
@@ -214,7 +307,7 @@ const App: React.FC = () => {
                     </div>
                      <div>
                         <label htmlFor="address" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Address
+                            Interface Address
                         </label>
                         <input
                             type="text" id="address" value={newInterfaceAddress}
@@ -237,6 +330,53 @@ const App: React.FC = () => {
                     <div className="flex justify-end space-x-2 pt-2">
                         <button onClick={() => setCreateModalOpen(false)} className="px-4 py-2 rounded-md bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-700 transition">Cancel</button>
                         <button onClick={handleCreateInterface} className="px-4 py-2 rounded-md bg-gray-800 hover:bg-gray-700 dark:bg-cyan-500 dark:hover:bg-cyan-600 text-white font-semibold transition">Create</button>
+                    </div>
+                </div>
+            </Modal>
+            
+            <Modal isOpen={isHostEditModalOpen} onClose={() => setHostEditModalOpen(false)} title="Edit Host IPs">
+                <div className="space-y-4">
+                     <div>
+                        <label htmlFor="hostIPs" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            IP Addresses
+                        </label>
+                        <textarea
+                            id="hostIPs"
+                            rows={4}
+                            value={editedHostIPs}
+                            onChange={(e) => setEditedHostIPs(e.target.value)}
+                            placeholder="One IP per line"
+                            className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-gray-900 dark:text-white font-mono focus:ring-gray-500 focus:border-gray-500 dark:focus:ring-cyan-500 dark:focus:border-cyan-500"
+                        />
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Enter one IP address per line. These will be used as the endpoint for client configs.</p>
+                    </div>
+
+                    {hostEditError && (
+                        <div className="p-3 bg-red-100 dark:bg-red-900/20 border border-red-400/30 dark:border-red-500/30 text-red-700 dark:text-red-300 rounded-md text-sm flex items-start">
+                            <ExclamationIcon className="w-5 h-5 mr-3 mt-0.5 flex-shrink-0" />
+                            <div>{hostEditError}</div>
+                        </div>
+                    )}
+
+                    <div className="flex justify-between items-center pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
+                        <button
+                            onClick={handleRescanHostIPs}
+                            disabled={isSavingHostIPs || isRescanningHostIPs}
+                            className="flex items-center px-4 py-2 rounded-md bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-700 text-sm font-semibold transition disabled:opacity-50"
+                        >
+                            <RefreshIcon className={`w-4 h-4 mr-2 ${isRescanningHostIPs ? 'animate-spin' : ''}`} />
+                            {isRescanningHostIPs ? 'Rescanning...' : 'Rescan'}
+                        </button>
+                        <div className="space-x-2">
+                            <button onClick={() => setHostEditModalOpen(false)} className="px-4 py-2 rounded-md bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-700 transition">Cancel</button>
+                            <button
+                                onClick={handleSaveHostIPs}
+                                disabled={isSavingHostIPs || isRescanningHostIPs}
+                                className="px-4 py-2 rounded-md bg-gray-800 hover:bg-gray-700 dark:bg-cyan-500 dark:hover:bg-cyan-600 text-white font-semibold transition disabled:opacity-50"
+                            >
+                                {isSavingHostIPs ? 'Saving...' : 'Save'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </Modal>

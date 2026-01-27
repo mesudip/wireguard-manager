@@ -6,9 +6,10 @@ interface ModalProps {
     onClose: () => void;
     title: string;
     children: ReactNode;
+    maxWidth?: string;
 }
 
-const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
+const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, maxWidth = 'max-w-lg' }) => {
     if (!isOpen) return null;
 
     return (
@@ -17,7 +18,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
             onClick={onClose}
         >
             <div 
-                className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md m-4 border border-gray-200 dark:border-gray-700"
+                className={`bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full ${maxWidth} m-4 border border-gray-200 dark:border-gray-700`}
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="p-4 border-b border-gray-200 dark:border-gray-700">
