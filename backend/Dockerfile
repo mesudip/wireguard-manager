@@ -15,9 +15,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Create directories
-RUN mkdir -p /etc/wireguard/wg-api && \
-    mkdir -p /lib/wireguard/backend
+RUN mkdir -p /lib/wireguard/backend
 
 EXPOSE 5000
 

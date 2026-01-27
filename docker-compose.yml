@@ -1,5 +1,5 @@
 volumes:
-  wireguard:
+  config:
     driver: local
 services:
   backend:
@@ -8,15 +8,16 @@ services:
       dockerfile: Dockerfile
       args:
         - VITE_API_BASE_URL=${VITE_API_BASE_URL:-/api}
-    container_name: wireguard-manager-backend
+    container_name: wireguard-manager
     cap_add:
       - NET_ADMIN
       - SYS_MODULE
+    ports:
+      - "5000:5000"
+      - 51820:51820/udp
     volumes:
-      - wireguard:/etc/wireguard
+      - config:/etc/wireguard
     environment:
-      - WG_WIREGUARD_USE_SUDO=false
-      - WG_WIREGUARD_USE_SYSTEMD=false
       - WG_WIREGUARD_BASE_DIR=/etc/wireguard
       - WG_SERVER_PORT=5000
     restart: unless-stopped

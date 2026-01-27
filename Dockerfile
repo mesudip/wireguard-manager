@@ -27,8 +27,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy built frontend from Stage 1
 # The backend serves static files from /lib/wireguard/backend
-RUN mkdir -p /lib/wireguard/backend && \
-    mkdir -p /etc/wireguard/wg-api
+RUN mkdir -p /lib/wireguard/backend
 COPY --from=frontend-builder /app/dist /lib/wireguard/backend
 
 EXPOSE 5000
@@ -39,4 +38,5 @@ ENV WG_WIREGUARD_USE_SUDO=false \
     WG_WIREGUARD_BASE_DIR=/etc/wireguard \
     WG_SERVER_PORT=5000
 
-CMD ["python", "app.py"]
+# Start the application using Gunicorn for production
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "4", "--timeout", "120", "--access-logfile", "-", "app:app"]

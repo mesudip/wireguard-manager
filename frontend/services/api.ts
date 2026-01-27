@@ -83,14 +83,24 @@ export const getInterfaces = async (): Promise<{ interfaces: Interface[], hostIn
 
     const interfaceNames = response.wireguard;
 
-    const interfaceDetailsPromises = interfaceNames.map(name =>
-        apiFetch(`${API_BASE_URL}/interfaces/${name}`) as Promise<ApiInterface>
+    // Use allSettled so one failed interface (e.g. 404) doesn't break the entire dashboard
+    const results = await Promise.allSettled(
+        interfaceNames.map(name => apiFetch(`${API_BASE_URL}/interfaces/${name}`) as Promise<ApiInterface>)
     );
 
-    const apiInterfaces = await Promise.all(interfaceDetailsPromises);
+    const successfulInterfaces = results
+        .filter((result): result is PromiseFulfilledResult<ApiInterface> => result.status === 'fulfilled')
+        .map(result => transformInterface(result.value));
+
+    // Log failures for visibility
+    results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+            console.warn(`Failed to fetch details for interface ${interfaceNames[index]}:`, (result as PromiseRejectedResult).reason);
+        }
+    });
 
     return {
-        interfaces: apiInterfaces.map(transformInterface),
+        interfaces: successfulInterfaces,
         hostInfo: response.host
     };
 };
