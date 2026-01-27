@@ -115,6 +115,7 @@ def docker_stack(request, docker_client):
     }
     
     if mode == "systemd":
+        kwargs["privileged"] = True
         kwargs["volumes"] = {'/sys/fs/cgroup': {'bind': '/sys/fs/cgroup', 'mode': 'rw'}}
         kwargs["tmpfs"] = {'/run': '', '/run/lock': '', '/tmp': '', '/run/wireguard': ''}
         kwargs["cgroupns_mode"] = "host"

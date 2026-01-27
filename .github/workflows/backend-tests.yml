@@ -23,6 +23,29 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r backend/tests/requirements.txt
 
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Standard Backend Image
+      uses: docker/build-push-action@v5
+      with:
+        context: backend/
+        file: backend/Dockerfile
+        tags: wireguard-backend-standard
+        load: true
+        cache-from: type=gha,scope=standard
+        cache-to: type=gha,mode=max,scope=standard
+
+    - name: Build Systemd Backend Image
+      uses: docker/build-push-action@v5
+      with:
+        context: backend/
+        file: backend/tests/Dockerfile.systemd
+        tags: wireguard-backend-systemd
+        load: true
+        cache-from: type=gha,scope=systemd
+        cache-to: type=gha,mode=max,scope=systemd
+
     - name: Run Integration Tests
       run: |
         pytest backend/tests -v -s
