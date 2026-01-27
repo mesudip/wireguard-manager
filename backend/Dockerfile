@@ -1,3 +1,5 @@
+## This dockerfile is used for testing backend only.
+## Use root dockerfile for production, as it bundles both frontend and backend.
 FROM python:3.11-slim
 
 # Install WireGuard tools and dependencies for wg-quick

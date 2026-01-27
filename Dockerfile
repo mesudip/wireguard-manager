@@ -1,0 +1,37 @@
+# Stage 1: Build Frontend
+FROM node:20-slim AS frontend-builder
+WORKDIR /app
+COPY frontend/package.json frontend/package-lock.json* ./
+RUN npm install
+COPY frontend/ .
+RUN npm run build
+
+# Stage 2: Final Backend Image
+FROM python:3.11-slim
+WORKDIR /app
+
+# Install WireGuard tools and dependencies for wg-quick
+RUN apt-get update && \
+    apt-get install -y wireguard-tools iproute2 iptables procps curl && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy backend source
+COPY backend/ .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy built frontend from Stage 1
+# The backend serves static files from /lib/wireguard/backend
+RUN mkdir -p /lib/wireguard/backend && \
+    mkdir -p /etc/wireguard/wg-api
+COPY --from=frontend-builder /app/dist /lib/wireguard/backend
+
+EXPOSE 5000
+
+# Default environment for container (can be overridden)
+ENV WG_WIREGUARD_USE_SUDO=false \
+    WG_WIREGUARD_USE_SYSTEMD=false \
+    WG_WIREGUARD_BASE_DIR=/etc/wireguard \
+    WG_SERVER_PORT=5000
+
+CMD ["python", "app.py"]
