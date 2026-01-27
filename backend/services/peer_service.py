@@ -39,7 +39,7 @@ class PeerService:
         self, 
         interface: str, 
         name: str, 
-        allowed_ips: str = '10.0.0.2/32',
+        allowed_ips: Optional[str] = None,
         endpoint: str = '',
         public_key: Optional[str] = None
     ) -> PeerResponse:
@@ -69,52 +69,47 @@ class PeerService:
         except ValueError:
             raise ValueError(f"Invalid interface address: {if_address}")
 
-        # Determine if allowed_ips is a subnet/partial or a specific IP
+        # Determine if discovery is requested
         is_automatic = False
         target_network = None
         
-        if allowed_ips and '/' not in allowed_ips and ':' not in allowed_ips:
-            # Clean parts
-            parts = [p.strip() for p in allowed_ips.split('.') if p.strip()]
-            
-            # Determine if it's a subnet discovery request
-            if len(parts) < 4 or (len(parts) == 4 and parts[-1] == '0'):
-                is_automatic = True
-                
-                # Rule: use segment count for prefix length if < 4 parts
-                # 10.10 -> /16, 10.10.0 -> /24
-                if len(parts) < 4:
-                    prefix_len = 8 * len(parts)
-                else: 
-                    # 4 parts ending in 0 -> /24 (standard network shorthand)
-                    prefix_len = 24
-                
-                full_ip = ".".join(parts + ['0'] * (4 - len(parts)))
-                
-                try:
-                    # We use strict=False to allow network addresses with host bits if any
-                    target_network = ipaddress.IPv4Network(f"{full_ip}/{prefix_len}", strict=False)
-                except ValueError:
-                    raise ValueError(f"Invalid subnet format: {allowed_ips}")
-            else:
-                # Looks like a full specific IP without CIDR, default to /32
-                allowed_ips = f"{allowed_ips}/32"
-
-        if not is_automatic and allowed_ips and '/' in allowed_ips:
-            try:
-                temp_net = ipaddress.ip_network(allowed_ips, strict=False)
-                # If they provide a broad CIDR like /24 or /16, enable discovery
-                if temp_net.prefixlen < 32:
+        # If no allowed_ips provided, default to interface network discovery
+        if not allowed_ips:
+            is_automatic = True
+            target_network = if_net
+        
+        # Check for shorthand or CIDR-based discovery (requires single segment for now)
+        if allowed_ips and not is_automatic and ',' not in allowed_ips:
+            if '/' not in allowed_ips and ':' not in allowed_ips:
+                # Clean parts
+                parts = [p.strip() for p in allowed_ips.split('.') if p.strip()]
+                # Determine if it's a subnet discovery request
+                if len(parts) < 4 or (len(parts) == 4 and parts[-1] == '0'):
                     is_automatic = True
-                    target_network = temp_net
-            except ValueError:
-                pass
+                    if len(parts) < 4:
+                        prefix_len = 8 * len(parts)
+                    else: 
+                        prefix_len = 24
+                    full_ip = ".".join(parts + ['0'] * (4 - len(parts)))
+                    try:
+                        target_network = ipaddress.IPv4Network(f"{full_ip}/{prefix_len}", strict=False)
+                    except ValueError:
+                        raise ValueError(f"Invalid subnet format: {allowed_ips}")
+            else:
+                # Looks like a CIDR. Only enable discovery if it's a subset of the interface network.
+                try:
+                    temp_net = ipaddress.ip_network(allowed_ips, strict=False)
+                    if temp_net.prefixlen < 32 and temp_net.subnet_of(if_net):
+                        is_automatic = True
+                        target_network = temp_net
+                except ValueError:
+                    pass
 
         if is_automatic:
             # Verify target_network is compatible with if_net (must be a subset)
-            # subnet_of was added in 3.7
+            # This is primarily for partial IP inputs which are always automatic
             if not target_network.subnet_of(if_net):
-                 raise ValueError(f"Subnet {target_network} is not a subset of interface network {if_net}")
+                 raise ValueError(f"Subnet {target_network} is not a subset of interface network {if_net}. Automatic IP discovery is only possible within the interface network.")
             
             # Find next available IP
             used_ips = set()
@@ -138,6 +133,26 @@ class PeerService:
                 raise ValueError(f"No available IPs in subnet {target_network}")
             
             allowed_ips = found_ip
+        else:
+            # Literal list or IP provided. 
+            # Normalize first
+            if allowed_ips:
+                allowed_ips = ",".join([a.strip() for a in allowed_ips.split(',') if a.strip()])
+            
+            # Ensure at least one listed IP is within the interface subnet
+            is_peer_in_vpn_subnet = False
+            for addr in allowed_ips.split(','):
+                try:
+                    # Use overlaps to check if the address/range has any common ground with the VPN
+                    net = ipaddress.ip_network(addr, strict=False)
+                    if net.overlaps(if_net):
+                        is_peer_in_vpn_subnet = True
+                        break
+                except ValueError:
+                    continue
+            
+            if not is_peer_in_vpn_subnet:
+                 raise ValueError(f"At least one IP address must be within the interface network {if_net}")
 
         # Validate final inputs
         if allowed_ips:
@@ -217,6 +232,32 @@ class PeerService:
             if allowed_ips:
                 allowed_ips = ",".join([a.strip() for a in allowed_ips.split(',') if a.strip()])
             validate_ip_address(allowed_ips, allow_multiple=True)
+            
+            # Subnet overlap check
+            if allowed_ips:
+                import ipaddress
+                # Load interface config to check its network
+                if_config_path = os.path.join(self.base_dir, interface, f"{interface}.conf")
+                if_config = parse_config(if_config_path)
+                if_address = if_config['Interface'].get('Address', '')
+                try:
+                    if_net = ipaddress.ip_interface(if_address).network
+                    is_peer_in_vpn_subnet = False
+                    for addr in allowed_ips.split(','):
+                        try:
+                            # Use overlaps to check if the address/range has any common ground with the VPN
+                            net = ipaddress.ip_network(addr, strict=False)
+                            if net.overlaps(if_net):
+                                is_peer_in_vpn_subnet = True
+                                break
+                        except ValueError:
+                            continue
+                    
+                    if not is_peer_in_vpn_subnet:
+                        raise ValueError(f"At least one IP address must be within the interface network {if_net}")
+                except (ValueError, KeyError):
+                    pass # Interface address issues handled in other parts
+            
             peer_data['AllowedIPs'] = allowed_ips
         if endpoint is not None:
             validate_endpoint(endpoint)

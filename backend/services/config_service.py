@@ -92,12 +92,18 @@ class ConfigService:
                 if peer_config and peer_config.get('Peers'):
                     config['Peers'].extend(peer_config['Peers'])
         
+        # Sort peers by PublicKey for consistent diff output
+        config['Peers'].sort(key=lambda x: x.get('PublicKey', ''))
+        
         # Get final config if exists
         final_config: WireGuardConfig = {"Interface": {}, "Peers": []}
         if os.path.exists(final_config_path):
             parsed = parse_config(final_config_path)
             if parsed:
                 final_config = parsed
+        
+        # Sort peers in final config as well
+        final_config['Peers'].sort(key=lambda x: x.get('PublicKey', ''))
         
         # Generate diff
         folder_lines = json.dumps(config, indent=2, sort_keys=True).splitlines()

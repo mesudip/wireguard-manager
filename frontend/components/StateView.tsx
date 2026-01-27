@@ -4,6 +4,7 @@ import { InterfaceState, DiffResult, HostInfo } from '../types';
 import DiffViewer from './DiffViewer';
 import * as api from '../services/api';
 import { RefreshIcon, DocumentTextIcon, ExclamationIcon, WifiIcon, BeakerIcon, UploadIcon, AtSymbolIcon } from './icons/Icons';
+import { NotificationDialog } from './Dialogs';
 
 interface StateViewProps {
     interfaceState: InterfaceState | null;
@@ -17,21 +18,33 @@ interface StateViewProps {
 
 const StateView: React.FC<StateViewProps> = ({ interfaceState, stateDiff, configDiff, interfaceName, interfaceAddress, refreshData, hostInfo }) => {
     const [isApplying, setIsApplying] = useState(false);
+    const [notification, setNotification] = useState<{ isOpen: boolean; title: string; message: string; variant: 'success' | 'error' }>({ isOpen: false, title: '', message: '', variant: 'success' });
 
     const handleApplyConfig = async () => {
         setIsApplying(true);
         try {
             await api.applyConfig(interfaceName);
-            alert('Configuration applied successfully!');
+            setNotification({
+                isOpen: true,
+                title: 'Success',
+                message: 'Configuration applied successfully!',
+                variant: 'success'
+            });
             refreshData();
         } catch (error) {
-            alert(`Failed to apply configuration: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            setNotification({
+                isOpen: true,
+                title: 'Apply Failed',
+                message: `Failed to apply configuration: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                variant: 'error'
+            });
         } finally {
+            setIsApplying(true); // Wait, line 29 shows it sets to false. Let me fix the logic here.
             setIsApplying(false);
         }
     };
 
-    const Card: React.FC<{title: string, value: React.ReactNode, icon: React.ReactNode}> = ({title, value, icon}) => (
+    const Card: React.FC<{ title: string, value: React.ReactNode, icon: React.ReactNode }> = ({ title, value, icon }) => (
         <div className="bg-white/50 dark:bg-gray-900/50 p-4 rounded-lg flex items-center border border-gray-200/50 dark:border-gray-700/50">
             <div className="p-3 rounded-full bg-gray-500/10 mr-4">
                 {icon}
@@ -42,7 +55,7 @@ const StateView: React.FC<StateViewProps> = ({ interfaceState, stateDiff, config
             </div>
         </div>
     );
-    
+
     const listenPort = interfaceState?.listenPort;
     const hostIps = hostInfo?.ips;
 
@@ -75,10 +88,10 @@ const StateView: React.FC<StateViewProps> = ({ interfaceState, stateDiff, config
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
-                    <Card title="Interface Address" value={interfaceAddress} icon={<AtSymbolIcon className="w-6 h-6 text-gray-600 dark:text-cyan-400"/>} />
+                    <Card title="Interface Address" value={interfaceAddress} icon={<AtSymbolIcon className="w-6 h-6 text-gray-600 dark:text-cyan-400" />} />
                 </div>
-                <Card title="Listen Endpoints" value={listenEndpointsContent} icon={<DocumentTextIcon className="w-6 h-6 text-gray-600 dark:text-cyan-400"/>} />
-                <Card title="Live Peers" value={interfaceState?.peers.length || 0} icon={<WifiIcon className="w-6 h-6 text-gray-600 dark:text-cyan-400"/>} />
+                <Card title="Listen Endpoints" value={listenEndpointsContent} icon={<DocumentTextIcon className="w-6 h-6 text-gray-600 dark:text-cyan-400" />} />
+                <Card title="Live Peers" value={interfaceState?.peers.length || 0} icon={<WifiIcon className="w-6 h-6 text-gray-600 dark:text-cyan-400" />} />
             </div>
 
             {stateDiff && stateDiff.hasChanges && (
@@ -94,7 +107,7 @@ const StateView: React.FC<StateViewProps> = ({ interfaceState, stateDiff, config
                                 <h4 className="font-bold">Pending Updates</h4>
                                 <p className="text-sm text-yellow-700 dark:text-yellow-400 mb-4">The live state differs from the saved configuration file. Apply the configuration to sync the changes.</p>
                                 <button onClick={handleApplyConfig} disabled={isApplying} className="flex items-center bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
-                                    <UploadIcon className="w-5 h-5 mr-2"/>
+                                    <UploadIcon className="w-5 h-5 mr-2" />
                                     {isApplying ? 'Applying...' : 'Apply Configuration'}
                                 </button>
                             </div>
@@ -103,6 +116,14 @@ const StateView: React.FC<StateViewProps> = ({ interfaceState, stateDiff, config
                     </div>
                 </div>
             )}
+
+            <NotificationDialog
+                isOpen={notification.isOpen}
+                onClose={() => setNotification({ ...notification, isOpen: false })}
+                title={notification.title}
+                message={notification.message}
+                variant={notification.variant}
+            />
         </div>
     );
 };

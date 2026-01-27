@@ -61,7 +61,7 @@ else:
 
 # Set sudo configuration
 set_auto_sudo(config.wireguard_use_sudo)
-logger.info(f"Automatic sudo usage: {config.wireguard_use_sudo}")
+logger.debug(f"Automatic sudo usage: {config.wireguard_use_sudo}")
 
 BASE_DIR = config.wireguard_base_dir
 Path(BASE_DIR).mkdir(parents=True, exist_ok=True)
@@ -107,7 +107,7 @@ swaggerui_blueprint = get_swaggerui_blueprint(
 )
 
 app.register_blueprint(swaggerui_blueprint, url_prefix=SWAGGER_URL)
-logger.info(f"Swagger UI configured at {SWAGGER_URL}")
+logger.debug(f"Swagger UI configured at {SWAGGER_URL}")
 
 @app.before_request
 def initialize_command_logs():

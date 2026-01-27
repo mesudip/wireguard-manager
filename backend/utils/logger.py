@@ -80,7 +80,7 @@ def setup_logger(
         console_handler.setLevel(log_level)
         logger.addHandler(console_handler)
         
-        logger.info("Console logging initialized")
+        logger.debug("Console logging initialized")
     
     return logger
 

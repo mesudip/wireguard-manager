@@ -7,6 +7,7 @@ import InterfaceList from './components/InterfaceList';
 import InterfaceDetail from './components/InterfaceDetail';
 import { PlusIcon, ServerIcon, SunIcon, MoonIcon, PencilIcon, ExclamationIcon, RefreshIcon } from './components/icons/Icons';
 import Modal from './components/Modal';
+import { ConfirmDialog } from './components/Dialogs';
 
 const App: React.FC = () => {
     const [interfaces, setInterfaces] = useState<Interface[]>([]);
@@ -28,6 +29,8 @@ const App: React.FC = () => {
     const [isSavingHostIPs, setIsSavingHostIPs] = useState(false);
     const [isRescanningHostIPs, setIsRescanningHostIPs] = useState(false);
     const [hostEditError, setHostEditError] = useState<string | null>(null);
+    const [createInterfaceError, setCreateInterfaceError] = useState<string | null>(null);
+    const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; name: string }>({ isOpen: false, name: '' });
 
     const [theme, setTheme] = useState(() =>
         document.documentElement.classList.contains('dark') ? 'dark' : 'light'
@@ -122,13 +125,15 @@ const App: React.FC = () => {
     }, []);
 
     const handleCreateInterface = async () => {
+        setCreateInterfaceError(null);
+
         if (!newInterfaceName.trim() || !newInterfaceAddress.trim() || !newInterfacePort.trim()) {
-            alert('All fields must be filled.');
+            setCreateInterfaceError('All fields must be filled.');
             return;
         }
         const port = parseInt(newInterfacePort, 10);
         if (isNaN(port) || port <= 0 || port > 65535) {
-            alert('Please enter a valid port number (1-65535).');
+            setCreateInterfaceError('Please enter a valid port number (1-65535).');
             return;
         }
 
@@ -138,6 +143,7 @@ const App: React.FC = () => {
             setNewInterfaceAddress('10.0.1.1/24');
             setNewInterfacePort('51820');
             setCreateModalOpen(false);
+            setCreateInterfaceError(null);
             await fetchInterfaces();
         } catch (err) {
             setError(err instanceof Error ? err.message : `Failed to create interface ${newInterfaceName}.`);
@@ -146,15 +152,18 @@ const App: React.FC = () => {
     };
 
     const handleDeleteInterface = async (name: string) => {
-        if (window.confirm(`Are you sure you want to delete the interface "${name}"? This action cannot be undone.`)) {
-            try {
-                await api.deleteInterface(name);
-                setSelectedInterface(null);
-                await fetchInterfaces();
-            } catch (err) {
-                setError(err instanceof Error ? err.message : `Failed to delete interface ${name}.`);
-                console.error(err);
-            }
+        setDeleteConfirm({ isOpen: true, name });
+    };
+
+    const confirmDeleteInterface = async () => {
+        const name = deleteConfirm.name;
+        try {
+            await api.deleteInterface(name);
+            setSelectedInterface(null);
+            await fetchInterfaces();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : `Failed to delete interface ${name}.`);
+            console.error(err);
         }
     };
 
@@ -303,7 +312,7 @@ const App: React.FC = () => {
                 )}
             </main>
 
-            <Modal isOpen={isCreateModalOpen} onClose={() => setCreateModalOpen(false)} title="Create New Interface">
+            <Modal isOpen={isCreateModalOpen} onClose={() => { setCreateModalOpen(false); setCreateInterfaceError(null); }} title="Create New Interface">
                 <div className="space-y-4">
                     <div>
                         <label htmlFor="interfaceName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -338,6 +347,14 @@ const App: React.FC = () => {
                             className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-gray-900 dark:text-white focus:ring-gray-500 focus:border-gray-500 dark:focus:ring-cyan-500 dark:focus:border-cyan-500"
                         />
                     </div>
+
+                    {createInterfaceError && (
+                        <div className="p-3 bg-red-100 dark:bg-red-900/20 border border-red-400/30 dark:border-red-500/30 text-red-700 dark:text-red-300 rounded-md text-sm flex items-start">
+                            <ExclamationIcon className="w-5 h-5 mr-3 mt-0.5 flex-shrink-0" />
+                            <div>{createInterfaceError}</div>
+                        </div>
+                    )}
+
                     <div className="flex justify-end space-x-2 pt-2">
                         <button onClick={() => setCreateModalOpen(false)} className="px-4 py-2 rounded-md bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-700 transition">Cancel</button>
                         <button onClick={handleCreateInterface} className="px-4 py-2 rounded-md bg-gray-800 hover:bg-gray-700 dark:bg-cyan-500 dark:hover:bg-cyan-600 text-white font-semibold transition">Create</button>
@@ -391,6 +408,16 @@ const App: React.FC = () => {
                     </div>
                 </div>
             </Modal>
+
+            <ConfirmDialog
+                isOpen={deleteConfirm.isOpen}
+                onClose={() => setDeleteConfirm({ isOpen: false, name: '' })}
+                onConfirm={confirmDeleteInterface}
+                title="Delete Interface"
+                message={`Are you sure you want to delete the interface "${deleteConfirm.name}"? This action cannot be undone.`}
+                variant="danger"
+                confirmText="Delete"
+            />
         </div>
     );
 };

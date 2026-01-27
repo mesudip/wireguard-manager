@@ -38,15 +38,15 @@ const EditPeerModal: React.FC<EditPeerModalProps> = ({ isOpen, onClose, peer, on
     const handleSubmit = async () => {
         if (!peer) return;
         setError(null);
-        
+
         const finalIPs = [...new Set([...allowedIPs, ...allowedIPsInput.split(/[\s,]+/).map(ip => ip.trim()).filter(Boolean)])];
         if (finalIPs.length === 0) {
-            alert('At least one Allowed IP is required.');
+            setError('At least one Allowed IP is required.');
             return;
         }
 
         if (!publicKey.trim()) {
-            alert('Public Key is required.');
+            setError('Public Key is required.');
             return;
         }
 

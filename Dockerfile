@@ -39,4 +39,4 @@ ENV WG_WIREGUARD_USE_SUDO=false \
     WG_SERVER_PORT=5000
 
 # Start the application using Gunicorn for production
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "4", "--timeout", "120", "--access-logfile", "-", "app:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "4", "--timeout", "120", "--access-logfile", "-", "--preload", "app:app"]

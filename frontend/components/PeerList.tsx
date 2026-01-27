@@ -11,6 +11,7 @@ import ProModeView from './peers/ProModeView';
 
 import { PlusIcon } from './icons/Icons';
 import QRCode from 'qrcode';
+import { ConfirmDialog, NotificationDialog } from './Dialogs';
 
 
 interface PeerListProps {
@@ -31,9 +32,11 @@ const PeerList: React.FC<PeerListProps> = ({ peers, refreshData, iface, hostInfo
     const [sharingPeer, setSharingPeer] = useState<Peer | null>(null);
     const [configText, setConfigText] = useState('');
     const [qrCodeUrl, setQrCodeUrl] = useState('');
-    
+
     const [isProMode, setIsProMode] = useState(false);
     const [needsRefreshOnModalClose, setNeedsRefreshOnModalClose] = useState(false);
+    const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; peer: Peer | null }>({ isOpen: false, peer: null });
+    const [notification, setNotification] = useState<{ isOpen: boolean; title: string; message: string; variant: 'success' | 'error' }>({ isOpen: false, title: '', message: '', variant: 'success' });
 
     // --- Event Handlers ---
 
@@ -50,16 +53,26 @@ const PeerList: React.FC<PeerListProps> = ({ peers, refreshData, iface, hostInfo
         setEditingPeer(null);
         refreshData();
     };
-    
+
     const handleDeletePeer = async (peer: Peer) => {
-        if (window.confirm(`Are you sure you want to delete the peer "${peer.name}"?`)) {
-            try {
-                await api.deletePeer(iface.name, peer.name);
-                refreshData();
-            } catch (error) {
-                 console.error("Failed to delete peer", error);
-                 alert(`Failed to delete peer: ${error instanceof Error ? error.message : 'Unknown error'}`);
-            }
+        setDeleteConfirm({ isOpen: true, peer });
+    };
+
+    const confirmDeletePeer = async () => {
+        const peer = deleteConfirm.peer;
+        if (!peer) return;
+
+        try {
+            await api.deletePeer(iface.name, peer.name);
+            refreshData();
+        } catch (error) {
+            console.error("Failed to delete peer", error);
+            setNotification({
+                isOpen: true,
+                title: 'Delete Failed',
+                message: `Failed to delete peer: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                variant: 'error'
+            });
         }
     };
 
@@ -104,7 +117,7 @@ Endpoint = ${endpoint}
             console.error('Failed to generate QR code', err);
             setQrCodeUrl('');
         }
-        
+
         // Ensure the object passed to the modal is a full Peer object
         const peerForModal: Peer = 'transfer' in peer ? peer : {
             ...peer,
@@ -116,7 +129,7 @@ Endpoint = ${endpoint}
         setSharingPeer(peerForModal);
         setIsShareModalOpen(true);
     };
-    
+
     const handleShareModalClose = () => {
         setIsShareModalOpen(false);
         if (needsRefreshOnModalClose) {
@@ -150,8 +163,8 @@ Endpoint = ${endpoint}
             {isProMode ? (
                 <ProModeView peers={peers} />
             ) : (
-                <PeerTable 
-                    peers={peers} 
+                <PeerTable
+                    peers={peers}
                     onShare={handleShareClick}
                     onEdit={handleEditClick}
                     onDelete={handleDeletePeer}
@@ -175,14 +188,32 @@ Endpoint = ${endpoint}
             )}
 
             {sharingPeer && (
-                 <SharePeerModal
+                <SharePeerModal
                     isOpen={isShareModalOpen}
                     onClose={handleShareModalClose}
                     peer={sharingPeer}
                     configText={configText}
                     qrCodeUrl={qrCodeUrl}
-                 />
+                />
             )}
+
+            <ConfirmDialog
+                isOpen={deleteConfirm.isOpen}
+                onClose={() => setDeleteConfirm({ isOpen: false, peer: null })}
+                onConfirm={confirmDeletePeer}
+                title="Delete Peer"
+                message={`Are you sure you want to delete the peer "${deleteConfirm.peer?.name}"?`}
+                variant="danger"
+                confirmText="Delete"
+            />
+
+            <NotificationDialog
+                isOpen={notification.isOpen}
+                onClose={() => setNotification({ ...notification, isOpen: false })}
+                title={notification.title}
+                message={notification.message}
+                variant={notification.variant}
+            />
         </div>
     );
 };

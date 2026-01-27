@@ -40,7 +40,7 @@ const AddPeerModal: React.FC<AddPeerModalProps> = ({ isOpen, onClose, onAddPeer,
         const finalIPs = [...new Set([...allowedIPs, ...allowedIPsInput.split(/[\s,]+/).map(ip => ip.trim()).filter(Boolean)])];
 
         if (!name.trim() || finalIPs.length === 0) {
-            alert('Peer Name and at least one Allowed IP are required.');
+            setError('Peer Name and at least one Allowed IP are required.');
             return;
         }
 
@@ -68,7 +68,7 @@ const AddPeerModal: React.FC<AddPeerModalProps> = ({ isOpen, onClose, onAddPeer,
                     <label htmlFor="peerName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Peer Name</label>
                     <input type="text" id="peerName" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g., my-laptop" className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2" />
                 </div>
-                
+
                 <AllowedIPsInput
                     list={allowedIPs}
                     setList={setAllowedIPs}

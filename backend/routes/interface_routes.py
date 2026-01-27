@@ -75,7 +75,10 @@ def create_interface_routes(interface_service: InterfaceService, host_info_servi
         result = interface_service.create_interface(
             name=interface_name,
             address=data.get('address', '10.0.0.1/24'),
-            listen_port=data.get('listen_port', '51820')
+            listen_port=data.get('listen_port', '51820'),
+            post_up=data.get('post_up'),
+            post_down=data.get('post_down'),
+            dns=data.get('dns')
         )
         return jsonify(result), 201
     
@@ -146,7 +149,10 @@ def create_interface_routes(interface_service: InterfaceService, host_info_servi
         interface_service.update_interface(
             name=interface,
             address=data.get('address'),
-            listen_port=data.get('listen_port')
+            listen_port=data.get('listen_port'),
+            post_up=data.get('post_up'),
+            post_down=data.get('post_down'),
+            dns=data.get('dns')
         )
         return jsonify({"message": "Interface updated successfully"})
     
