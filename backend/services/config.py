@@ -75,5 +75,5 @@ def write_config(config_path: str, config_data: WireGuardConfig) -> None:
     try:
         os.chmod(config_path, 0o640)
     except OSError:
-        # Ignore errors if we don't have permission to chmod (e.g. not owner)
+        print(f"Warning: Could not set permissions on {config_path}: {e}")
         pass

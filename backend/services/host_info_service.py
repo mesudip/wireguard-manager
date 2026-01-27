@@ -54,21 +54,25 @@ class HostInfoService:
         return ips
 
     def _get_external_ip(self, version: int = 4) -> Optional[str]:
-        """Get external IP using ifconfig.me."""
-        url = "https://ifconfig.me"
-        # For IPv6, we might need a specific endpoint or force IPv6
-        # ifconfig.me usually returns IPv4 by default. 
-        # Some services have ipv4.ifconfig.me and ipv6.ifconfig.me
+        """Get external IP using multiple fallback services."""
         if version == 6:
-            url = "https://ipv6.ifconfig.me"
+            urls = [
+                "https://ipv6.ifconfig.me",
+                "https://api6.ipify.org",
+            ]
         else:
-            url = "https://ipv4.ifconfig.me"
-            
-        try:
-            with urllib.request.urlopen(url, timeout=5) as response:
-                return response.read().decode('utf-8').strip()
-        except (urllib.error.URLError, socket.timeout):
-            return None
+            urls = [
+                "https://ipv4.ifconfig.me",
+                "https://api.ipify.org",
+            ]
+        
+        for url in urls:
+            try:
+                with urllib.request.urlopen(url, timeout=5) as response:
+                    return response.read().decode('utf-8').strip()
+            except (urllib.error.URLError, socket.timeout):
+                continue
+        return None
 
     def update_host_info(self, force: bool = False) -> Dict[str, Any]:
         """
