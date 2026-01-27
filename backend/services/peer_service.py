@@ -73,41 +73,37 @@ class PeerService:
         is_automatic = False
         target_network = None
         
-        if allowed_ips and '/' not in allowed_ips:
+        if allowed_ips and '/' not in allowed_ips and ':' not in allowed_ips:
             # Clean parts
             parts = [p.strip() for p in allowed_ips.split('.') if p.strip()]
             
-            # Trailing .0 also indicates a subnet/network address
+            # Determine if it's a subnet discovery request
             if len(parts) < 4 or (len(parts) == 4 and parts[-1] == '0'):
                 is_automatic = True
                 
-                # Determine meaningful parts (exclude trailing zeros for prefix calculation)
-                meaningful_parts = []
-                for p in parts:
-                    if p == '0' and not meaningful_parts: # leading zeros? unlikely but handle
-                        meaningful_parts.append(p)
-                    elif p != '0':
-                        meaningful_parts.append(p)
-                    else:
-                        break # First trailing zero
+                # Rule: use segment count for prefix length if < 4 parts
+                # 10.10 -> /16, 10.10.0 -> /24
+                if len(parts) < 4:
+                    prefix_len = 8 * len(parts)
+                else: 
+                    # 4 parts ending in 0 -> /24 (standard network shorthand)
+                    prefix_len = 24
                 
-                if not meaningful_parts: # just "0" or empty
-                    meaningful_parts = ["0"]
-                
-                prefix_len = 8 * len(meaningful_parts)
                 full_ip = ".".join(parts + ['0'] * (4 - len(parts)))
                 
                 try:
+                    # We use strict=False to allow network addresses with host bits if any
                     target_network = ipaddress.IPv4Network(f"{full_ip}/{prefix_len}", strict=False)
                 except ValueError:
                     raise ValueError(f"Invalid subnet format: {allowed_ips}")
             else:
-                # Looks like a full IP without CIDR, default to /32
+                # Looks like a full specific IP without CIDR, default to /32
                 allowed_ips = f"{allowed_ips}/32"
 
         if not is_automatic and allowed_ips and '/' in allowed_ips:
             try:
                 temp_net = ipaddress.ip_network(allowed_ips, strict=False)
+                # If they provide a broad CIDR like /24 or /16, enable discovery
                 if temp_net.prefixlen < 32:
                     is_automatic = True
                     target_network = temp_net
@@ -115,9 +111,9 @@ class PeerService:
                 pass
 
         if is_automatic:
-            # Verify target_network is compatible with if_net
-            # Use overlaps or subnet check
-            if not target_network.overlaps(if_net):
+            # Verify target_network is compatible with if_net (must be a subset)
+            # subnet_of was added in 3.7
+            if not target_network.subnet_of(if_net):
                  raise ValueError(f"Subnet {target_network} is not a subset of interface network {if_net}")
             
             # Find next available IP
