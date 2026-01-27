@@ -98,11 +98,20 @@ def docker_stack(request, docker_client):
     container_name = f"wg-test-{mode}-{uuid.uuid4().hex[:8]}"
     print(f"Starting {mode} container {container_name}...")
     
+    env = {}
+    if mode == "standard":
+        env = {
+            "WG_WIREGUARD_USE_SYSTEMD": "false",
+            "WG_WIREGUARD_USE_SUDO": "false",
+            "WG_WIREGUARD_BASE_DIR": "/etc/wireguard"
+        }
+    
     kwargs = {
         "detach": True,
         "name": container_name,
         "ports": {'5000/tcp': None},
-        "privileged": True
+        "cap_add": ["NET_ADMIN"],
+        "environment": env
     }
     
     if mode == "systemd":
@@ -119,8 +128,21 @@ def docker_stack(request, docker_client):
         else:
             raise
 
+    # Give it a second to stabilize and get network settings
+    time.sleep(1)
     container.reload()
+    
     ports = container.attrs['NetworkSettings']['Ports']
+    if not ports or '5000/tcp' not in ports or not ports['5000/tcp']:
+        # Fallback/Retry reload if ports are missing
+        container.reload()
+        ports = container.attrs['NetworkSettings']['Ports']
+        
+    if not ports or '5000/tcp' not in ports or not ports['5000/tcp']:
+        logs = container.logs().decode()
+        container.remove(force=True)
+        pytest.fail(f"Could not get host port for container {container_name}. Logs:\n{logs}")
+
     host_port = ports['5000/tcp'][0]['HostPort']
     host = get_docker_host()
     base_url = f"http://{host}:{host_port}"

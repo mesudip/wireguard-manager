@@ -28,6 +28,7 @@ class AppConfig:
         'wireguard': {
             'base_dir': '/etc/wireguard',
             'use_sudo': 'true',
+            'use_systemd': 'true',
         },
         'logging': {
             'method': 'console',
@@ -50,20 +51,28 @@ class AppConfig:
         self._load_config()
     
     def _load_config(self) -> None:
-        """Load configuration from file with defaults."""
-        # Load defaults first
+        """Load configuration from file with defaults and environment overrides."""
+        # 1. Load defaults
         self.config.read_dict(self.DEFAULTS)
         
-        # Override with file config if it exists
+        # 2. Override with file config if it exists
         if os.path.exists(self.config_path):
             try:
                 self.config.read(self.config_path)
                 print(f"Loaded configuration from {self.config_path}")
             except Exception as e:
                 print(f"Warning: Failed to read config file {self.config_path}: {e}")
-                print("Using default configuration")
-        else:
-            print(f"Config file {self.config_path} not found, using defaults")
+        
+        # 3. Override with environment variables
+        # Format: WG_<SECTION>_<KEY> (e.g., WG_SERVER_PORT, WG_WIREGUARD_USE_SUDO)
+        for section in self.DEFAULTS:
+            for key in self.DEFAULTS[section]:
+                env_key = f"WG_{section.upper()}_{key.upper()}"
+                env_value = os.environ.get(env_key)
+                if env_value is not None:
+                    if section not in self.config:
+                        self.config.add_section(section)
+                    self.config.set(section, key, env_value)
     
     def get(self, section: str, key: str, fallback: Any = None) -> str:
         """
@@ -149,6 +158,10 @@ class AppConfig:
     @property
     def wireguard_use_sudo(self) -> bool:
         return self.get_bool('wireguard', 'use_sudo')
+    
+    @property
+    def wireguard_use_systemd(self) -> bool:
+        return self.get_bool('wireguard', 'use_systemd')
     
     @property
     def logging_method(self) -> str:

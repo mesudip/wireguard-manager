@@ -1,8 +1,8 @@
 FROM python:3.11-slim
 
-# Install WireGuard tools
+# Install WireGuard tools and dependencies for wg-quick
 RUN apt-get update && \
-    apt-get install -y wireguard-tools iproute2 && \
+    apt-get install -y wireguard-tools iproute2 iptables procps curl && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -13,8 +13,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Create wireguard directory
-RUN mkdir -p /etc/wireguard/wg-api
+# Create directories
+RUN mkdir -p /etc/wireguard/wg-api && \
+    mkdir -p /lib/wireguard/backend
 
 EXPOSE 5000
 

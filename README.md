@@ -39,6 +39,19 @@ This will:
 
 After installation, access the application at `http://your-server-ip:5000`
 
+### Docker Setup (Recommended for Containers)
+
+You can run WireGuard Manager in a Docker container using the provided `docker-compose.yml`.
+
+1. Build and start the containers:
+```bash
+docker-compose up -d
+```
+
+**Requirements:**
+- The container must run with `NET_ADMIN` capability and `network_mode: host` to manage WireGuard interfaces on the host.
+- `/etc/wireguard` is mounted by default to persist configurations.
+
 ### Manual Setup (Development)
 
 #### Backend Setup

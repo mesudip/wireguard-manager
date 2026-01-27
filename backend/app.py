@@ -68,7 +68,7 @@ Path(BASE_DIR).mkdir(parents=True, exist_ok=True)
 
 interface_service = InterfaceService(BASE_DIR)
 peer_service = PeerService(BASE_DIR)
-config_service = ConfigService(BASE_DIR)
+config_service = ConfigService(BASE_DIR, use_systemd=config.wireguard_use_systemd)
 state_service = StateService(BASE_DIR)
 host_info_service = HostInfoService(BASE_DIR)
 

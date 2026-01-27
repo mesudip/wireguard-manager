@@ -1,0 +1,38 @@
+volumes:
+  wireguard:
+    driver: local
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: wireguard-manager-backend
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    volumes:
+      - wireguard:/etc/wireguard
+      # Mount the static frontend files if they are built
+      - ./frontend/dist:/lib/wireguard/backend:ro
+    environment:
+      - WG_WIREGUARD_USE_SUDO=false
+      - WG_WIREGUARD_USE_SYSTEMD=false
+      - WG_WIREGUARD_BASE_DIR=/etc/wireguard
+      - WG_SERVER_PORT=5000
+    restart: unless-stopped
+
+  frontend:
+    # Optional: if you want to run frontend development server
+    # For production, backend serves the static files from /lib/wireguard/backend
+    image: node:20-slim
+    container_name: wireguard-manager-frontend
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+    command: npm run dev
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:5000/api
+    ports:
+      - "3000:3000"
+    profiles:
+      - dev
