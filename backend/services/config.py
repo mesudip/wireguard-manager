@@ -71,9 +71,23 @@ def write_config(config_path: str, config_data: WireGuardConfig) -> None:
                 if value:  # Only write non-empty values
                     f.write(f'{key} = {value}\n')
     
-    # Set secure permissions: owner read/write, group read (0640)
+    # Set secure permissions:
+    # - If the config contains a PrivateKey, restrict to owner read/write (0600)
+    # - Otherwise allow owner read/write and group read (0640)
     try:
-        os.chmod(config_path, 0o640)
-    except OSError:
-        print(f"Warning: Could not set permissions on {config_path}: {e}")
+        contains_private = False
+        iface = config_data.get('Interface', {}) or {}
+        if 'PrivateKey' in iface and iface.get('PrivateKey'):
+            contains_private = True
+        else:
+            # Also check peers for any private key fields (defensive)
+            for p in config_data.get('Peers', []) or []:
+                if p.get('PrivateKey'):
+                    contains_private = True
+                    break
+
+        mode = 0o600 if contains_private else 0o640
+        os.chmod(config_path, mode)
+    except OSError as err:
+        print(f"Warning: Could not set permissions on {config_path}: {err}")
         pass

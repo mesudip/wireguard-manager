@@ -134,6 +134,7 @@ class ConfigService:
         # wg syncconf only supports PrivateKey, ListenPort, FwMark in [Interface]
         clean_config_path = f"{final_config_path}.tmp"
         try:
+            # Write the temporary clean config and ensure it's only readable by owner
             with open(clean_config_path, 'w') as f:
                 f.write('[Interface]\n')
                 # Only include fields supported by 'wg syncconf'
@@ -146,6 +147,13 @@ class ConfigService:
                     for key, value in peer.items():
                         if value:
                             f.write(f"{key} = {value}\n")
+
+            # Ensure the temp clean config is not world-readable since it may contain PrivateKey
+            try:
+                os.chmod(clean_config_path, 0o600)
+            except OSError:
+                # Best effort; do not fail the whole operation if chmod isn't supported
+                pass
             
             # 3. Apply the clean config using wg syncconf
             warnings = []

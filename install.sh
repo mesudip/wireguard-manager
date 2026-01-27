@@ -133,7 +133,12 @@ fi
 # Also show local IPs if no public IPs or just as additional info
 if [ -n "$LOCAL_IPS" ]; then
     for ip in $LOCAL_IPS; do
-        echo "     - Local IP: http://$ip:5000"
+        # If this looks like an IPv6 address, wrap it in [] when used in a URL
+        if [[ "$ip" == *:* ]]; then
+            echo "     - Local IP: http://[$ip]:5000"
+        else
+            echo "     - Local IP: http://$ip:5000"
+        fi
     done
 fi
 echo ""

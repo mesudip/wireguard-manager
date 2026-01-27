@@ -44,7 +44,12 @@ const PeerRow: React.FC<PeerRowProps> = ({ peer, onShare, onEdit, onDelete }) =>
                         <WifiIcon className="h-6 w-6 text-gray-600 dark:text-cyan-400" />
                     </div>
                     <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900 dark:text-gray-200">{peer.name}</div>
+                        <div
+                            className="text-sm font-medium text-gray-900 dark:text-gray-200 max-w-[22ch] truncate"
+                            title={peer.name}
+                        >
+                            {peer.name}
+                        </div>
                         <div className="text-sm text-gray-500 dark:text-gray-400 font-mono">{peer.endpoint}</div>
                     </div>
                 </div>
