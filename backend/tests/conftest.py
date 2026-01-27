@@ -143,32 +143,54 @@ def docker_stack(request, docker_client):
             raise
 
     # Give it a second to stabilize and get network settings
-    time.sleep(1)
+    time.sleep(3)
     container.reload()
     
+    # 5. Get assigned port
     ports = container.attrs['NetworkSettings']['Ports']
     if not ports or '5000/tcp' not in ports or not ports['5000/tcp']:
-        # Fallback/Retry reload if ports are missing
+        # Fallback/Retry reload if ports are missing (sometimes happens in slow CI)
+        time.sleep(2)
         container.reload()
         ports = container.attrs['NetworkSettings']['Ports']
         
     if not ports or '5000/tcp' not in ports or not ports['5000/tcp']:
-        logs = container.logs().decode()
+        state = container.attrs.get('State', {})
+        status = state.get('Status', 'unknown')
+        exit_code = state.get('ExitCode', 'N/A')
+        error = state.get('Error', 'N/A')
+        
+        try:
+            logs = container.logs().decode('utf-8', errors='replace')
+        except Exception as e:
+            logs = f"Failed to fetch logs: {e}"
+            
+        container_info = (
+            f"\n--- CONTAINER FAILURE INFO ---\n"
+            f"Container: {container_name} ({mode})\n"
+            f"Status: {status}\n"
+            f"ExitCode: {exit_code}\n"
+            f"Error: {error}\n"
+            f"--- CONTAINER LOGS ---\n"
+            f"{logs}\n"
+            f"---------------------------\n"
+        )
+        print(container_info)
         container.remove(force=True)
-        pytest.fail(f"Could not get host port for container {container_name}. Logs:\n{logs}")
+        pytest.fail(f"Could not get host port for {mode} container. See logs above.")
 
     host_port = ports['5000/tcp'][0]['HostPort']
     host = get_docker_host()
     base_url = f"http://{host}:{host_port}"
     
     try:
-        wait_for_ready(base_url, mode)
+        wait_for_ready(base_url, mode, container)
         yield base_url
     finally:
         print(f"\nStopping container {container_name}...")
         container.remove(force=True)
 
-def wait_for_ready(base_url, mode):
+def wait_for_ready(base_url, mode, container=None):
     print(f"Waiting for {mode} API to be ready at {base_url}...")
     start_time = time.time()
     ready = False
@@ -181,9 +203,20 @@ def wait_for_ready(base_url, mode):
                 ready = True
                 break
         except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+            # Check if container died while waiting
+            if container:
+                container.reload()
+                if container.attrs.get('State', {}).get('Status') == 'exited':
+                    break
             time.sleep(2)
     
     if not ready:
+        if container:
+            try:
+                logs = container.logs().decode('utf-8', errors='replace')
+                print(f"\n--- API READINESS FAILURE LOGS ({mode}) ---\n{logs}\n--- END LOGS ---")
+            except:
+                pass
         pytest.fail(f"API ({mode}) did not become ready in time at {base_url}.")
 
 def pytest_generate_tests(metafunc):
