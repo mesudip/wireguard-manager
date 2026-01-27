@@ -1,10 +1,15 @@
 # Stage 1: Build Frontend
 FROM node:20-slim AS frontend-builder
 WORKDIR /app
-COPY frontend/package.json frontend/package-lock.json* ./
-RUN npm install
+
+# Accept build argument for API URL
+ARG VITE_API_BASE_URL
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+
+COPY frontend/package.json frontend/yarn.lock* ./
+RUN yarn install --frozen-lockfile
 COPY frontend/ .
-RUN npm run build
+RUN yarn build
 
 # Stage 2: Final Backend Image
 FROM python:3.11-slim

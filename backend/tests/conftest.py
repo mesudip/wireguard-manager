@@ -123,35 +123,42 @@ def docker_stack(request, docker_client):
         "detach": True,
         "name": container_name,
         "ports": {'5000/tcp': None},
-        "cap_add": ["NET_ADMIN", "SYS_MODULE"],
+        "cap_add": ["NET_ADMIN", "SYS_MODULE", "SYS_ADMIN"],
         "environment": env
     }
     
     if mode == "systemd":
-        kwargs["privileged"] = True
-        # systemd requires SYS_ADMIN and specific mounts
-        if "SYS_ADMIN" not in kwargs["cap_add"]:
-            kwargs["cap_add"].append("SYS_ADMIN")
+        # Add systemd debugging environment variables
+        env["SYSTEMD_LOG_LEVEL"] = "debug"
+        env["SYSTEMD_SHOW_STATUS"] = "true"
+        env["SYSTEMD_IGNORE_CHROOT"] = "1"
         
+        kwargs["privileged"] = True
         kwargs["volumes"] = {
             '/sys/fs/cgroup': {'bind': '/sys/fs/cgroup', 'mode': 'rw'},
-            '/lib/modules': {'bind': '/lib/modules', 'mode': 'ro'}
+            '/lib/modules': {'bind': '/lib/modules', 'mode': 'ro'},
+            '/sys/kernel/config': {'bind': '/sys/kernel/config', 'mode': 'ro'},
+            '/sys/fs/fuse': {'bind': '/sys/fs/fuse', 'mode': 'rw'}
         }
-        kwargs["tmpfs"] = {'/run': '', '/run/lock': '', '/tmp': '', '/run/wireguard': ''}
-        # In GHA, cgroupns_mode="host" is often mandatory for jrei/systemd-ubuntu
+        # Refined tmpfs for systemd 248+ (required for Ubuntu 24.04 base)
+        kwargs["tmpfs"] = {
+            '/run': 'rw,nosuid,nodev,mode=755',
+            '/run/lock': 'rw,nosuid,nodev,noexec,relatime,size=5m',
+            '/tmp': 'rw,nosuid,nodev'
+        }
         kwargs["cgroupns_mode"] = "host"
+        # Disable security restrictors which often block systemd PID 1 in GHA
+        kwargs["security_opt"] = ["seccomp=unconfined", "apparmor=unconfined"]
     
     try:
         container = docker_client.containers.run(image_tag, **kwargs)
-    except TypeError as e:
-        # Fallback for older docker-py that doesn't support some newer flags
-        print(f"Docker run TypeError: {e}. Retrying without redundant flags...")
-        container = docker_client.containers.run(image_tag, detach=True, name=container_name, ports={'5000/tcp': None}, privileged=True)
     except Exception as e:
-        pytest.fail(f"Failed to start {mode} container: {e}")
+        print(f"\nCRITICAL: Failed to start {mode} container. Error: {e}")
+        print(f"Kwargs used: {kwargs}")
+        raise
 
-    # Give it a second to stabilize and get network settings
-    time.sleep(3)
+    # Give systemd a bit more time to reach the socket-binding stage
+    time.sleep(5)
     container.reload()
     
     # 5. Get assigned port

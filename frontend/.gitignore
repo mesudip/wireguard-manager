@@ -6,7 +6,6 @@
 # next.js
 /.next/
 /out/
-dist/
 .vite/
 # production
 /build

@@ -4,7 +4,7 @@ import {
     ApiInterface, ApiPeer, ApiInterfaceState, ApiConfigDiff, ApiStateDiff, ApiInterfaceListResponse
 } from '../types';
 
-const API_BASE_URL = 'https://test1.gateway.sireto.net/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://test1.gateway.sireto.net/api';
 
 const apiFetch = async (url: string, options?: RequestInit) => {
     try {
@@ -31,7 +31,7 @@ const apiFetch = async (url: string, options?: RequestInit) => {
         if (contentType && contentType.includes('application/json')) {
             return response.json();
         }
-        
+
         throw new Error(`Unexpected content type: ${contentType}. Expected a JSON response.`);
 
     } catch (error) {
@@ -47,7 +47,7 @@ const transformInterface = (apiIface: ApiInterface): Interface => ({
     name: apiIface.name,
     publicKey: apiIface.public_key,
     address: apiIface.address,
-    listenPort: parseInt(apiIface.listen_port as any, 10), 
+    listenPort: parseInt(apiIface.listen_port as any, 10),
 });
 
 const transformConfigPeer = (apiPeer: ApiPeer): ConfigPeer => ({
@@ -80,15 +80,15 @@ const transformInterfaceState = (apiState: ApiInterfaceState): InterfaceState =>
 
 export const getInterfaces = async (): Promise<{ interfaces: Interface[], hostInfo: HostInfo }> => {
     const response: ApiInterfaceListResponse = await apiFetch(`${API_BASE_URL}/interfaces`);
-    
+
     const interfaceNames = response.wireguard;
-    
+
     const interfaceDetailsPromises = interfaceNames.map(name =>
         apiFetch(`${API_BASE_URL}/interfaces/${name}`) as Promise<ApiInterface>
     );
-    
+
     const apiInterfaces = await Promise.all(interfaceDetailsPromises);
-    
+
     return {
         interfaces: apiInterfaces.map(transformInterface),
         hostInfo: response.host
@@ -96,7 +96,7 @@ export const getInterfaces = async (): Promise<{ interfaces: Interface[], hostIn
 };
 
 export const createInterface = async (newInterface: { name: string, address: string, listen_port: string }): Promise<Interface> => {
-     const data: ApiInterface = await apiFetch(`${API_BASE_URL}/interfaces`, {
+    const data: ApiInterface = await apiFetch(`${API_BASE_URL}/interfaces`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newInterface),
@@ -104,7 +104,7 @@ export const createInterface = async (newInterface: { name: string, address: str
     return transformInterface(data);
 };
 
-export const deleteInterface = async (interfaceName: string): Promise<{success: boolean}> => {
+export const deleteInterface = async (interfaceName: string): Promise<{ success: boolean }> => {
     return apiFetch(`${API_BASE_URL}/interfaces/${encodeURIComponent(interfaceName)}`, {
         method: 'DELETE'
     });
@@ -124,7 +124,7 @@ export const addPeer = async (interfaceName: string, peer: { name: string, allow
     return transformConfigPeer(data);
 };
 
-export const updatePeer = async (interfaceName: string, peerName: string, peerData: { allowed_ips?: string, endpoint?: string, public_key?: string }): Promise<{success: boolean}> => {
+export const updatePeer = async (interfaceName: string, peerName: string, peerData: { allowed_ips?: string, endpoint?: string, public_key?: string }): Promise<{ success: boolean }> => {
     return apiFetch(`${API_BASE_URL}/interfaces/${interfaceName}/peers/${encodeURIComponent(peerName)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -132,7 +132,7 @@ export const updatePeer = async (interfaceName: string, peerName: string, peerDa
     });
 };
 
-export const deletePeer = async (interfaceName: string, peerName: string): Promise<{success: boolean}> => {
+export const deletePeer = async (interfaceName: string, peerName: string): Promise<{ success: boolean }> => {
     return apiFetch(`${API_BASE_URL}/interfaces/${interfaceName}/peers/${encodeURIComponent(peerName)}`, {
         method: 'DELETE'
     });
