@@ -15,6 +15,7 @@ interface EditPeerModalProps {
 const EditPeerModal: React.FC<EditPeerModalProps> = ({ isOpen, onClose, peer, onUpdatePeer }) => {
     const [allowedIPs, setAllowedIPs] = useState<string[]>([]);
     const [allowedIPsInput, setAllowedIPsInput] = useState('');
+    const [name, setName] = useState('');
     const [endpoint, setEndpoint] = useState('');
     const [publicKey, setPublicKey] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -22,6 +23,7 @@ const EditPeerModal: React.FC<EditPeerModalProps> = ({ isOpen, onClose, peer, on
 
     useEffect(() => {
         if (peer) {
+            setName(peer.name);
             setAllowedIPs(peer.allowedIPs ? peer.allowedIPs.split(/[\s,]+/).filter(Boolean) : []);
             setEndpoint(peer.endpoint);
             setPublicKey(peer.publicKey);
@@ -53,6 +55,7 @@ const EditPeerModal: React.FC<EditPeerModalProps> = ({ isOpen, onClose, peer, on
         setIsSubmitting(true);
         try {
             await onUpdatePeer(peer.name, {
+                name: name.trim(),
                 allowed_ips: finalIPs.join(', '),
                 endpoint: endpoint.trim() || undefined,
                 public_key: publicKey.trim(),
@@ -74,6 +77,17 @@ const EditPeerModal: React.FC<EditPeerModalProps> = ({ isOpen, onClose, peer, on
                     input={allowedIPsInput}
                     setInput={setAllowedIPsInput}
                 />
+                <div>
+                    <label htmlFor="editName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Peer Name</label>
+                    <input
+                        type="text"
+                        id="editName"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="Peer name"
+                        className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2"
+                    />
+                </div>
                 <div>
                     <label htmlFor="editPublicKey" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Public Key</label>
                     <input

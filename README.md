@@ -157,6 +157,53 @@ After changing configuration, restart the service:
 sudo systemctl restart wireguard-manager
 ```
 
+### Environment Variables
+
+All backend configuration keys may be set via environment variables. By default the loader reads variables in the form `<SECTION>_<KEY>` (for example `SERVER_PORT`). For backwards compatibility the same variables may optionally be prefixed with `WG_` (for example `WG_SERVER_PORT`).
+
+Examples (name = env var name, default shown):
+
+- `SERVER_HOST` (default: `::`) — API bind host
+- `SERVER_PORT` (default: `5000`) — API port
+- `SERVER_DEBUG` (default: `false`) — Enable debug mode
+
+- `CORS_ENABLED` (default: `true`) — Enable CORS
+- `CORS_ORIGINS` (default: `*`) — CORS origins
+- `CORS_METHODS` (default: `GET,POST,PUT,DELETE,OPTIONS`)
+- `CORS_ALLOW_HEADERS` (default: `Content-Type,Authorization`)
+- `CORS_EXPOSE_HEADERS` (default: empty)
+- `CORS_SUPPORTS_CREDENTIALS` (default: `false`)
+- `CORS_MAX_AGE` (default: `3600`)
+
+- `WIREGUARD_BASE_DIR` (default: `/etc/wireguard`) — Base directory for WireGuard configs
+- `WIREGUARD_USE_SUDO` (default: `true`) — Use `sudo` for wg commands
+- `WIREGUARD_USE_SYSTEMD` (default: `true`) — Use systemd to manage interfaces
+
+- `LOGGING_METHOD` (default: `console`) — `console` or `directory`
+- `LOGGING_LEVEL` (default: `INFO`)
+- `LOGGING_DIR` (default: `/var/log/wireguard-manager`)
+- `LOGGING_MAX_BYTES` (default: `10485760`)
+- `LOGGING_BACKUP_COUNT` (default: `5`)
+
+- `SECURITY_ALLOWED_PROXIES` (default: empty) — Comma-separated list of trusted proxy IPs/networks
+- `SECURITY_ALLOWED_IPS` (default: empty) — Comma-separated list of allowed client IPs/networks
+
+Set environment variables in your Docker compose or container runtime to override the configuration file. Example `docker-compose.yml` snippet:
+
+```yaml
+services:
+   backend:
+      image: wireguard-manager:latest
+      environment:
+         - SERVER_HOST=0.0.0.0
+         - SERVER_PORT=5000
+         - SECURITY_ALLOWED_IPS=10.0.0.0/24,192.168.1.0/24
+      ports:
+         - 5000:5000
+      cap_add:
+         - NET_ADMIN
+```
+
 ### IPv6 Support
 
 The backend supports both IPv4 and IPv6:

@@ -1,20 +1,16 @@
 FROM jrei/systemd-ubuntu:24.04
-
-# Avoid prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# Install dependencies required for the installation script
 RUN apt-get update && \
     apt-get install -y sudo python3 python3-pip python3-venv wireguard-tools curl iproute2 && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-WORKDIR /tmp/wireguard-manager
+WORKDIR /app
 
 # Pre-install python dependencies for better caching
-# We install them directly into the path where install.sh expects them
 COPY requirements.txt .
 RUN python3 -m venv /opt/wireguard-manager/venv && \
     /opt/wireguard-manager/venv/bin/pip install --upgrade pip && \
@@ -33,6 +29,3 @@ RUN mkdir -p /etc/systemd/system/multi-user.target.wants && \
 
 # Expose the API port
 EXPOSE 5000
-
-# The base image already has STOPSIGNAL and ENTRYPOINT set for systemd.
-# CMD is usually /lib/systemd/systemd

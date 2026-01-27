@@ -20,6 +20,7 @@ from services.peer_service import PeerService
 from services.config_service import ConfigService
 from services.state_service import StateService
 from services.host_info_service import HostInfoService
+from services.access_control import AccessControl
 from routes.interface_routes import create_interface_routes
 from routes.peer_routes import create_peer_routes
 from routes.config_routes import create_config_routes
@@ -66,9 +67,9 @@ logger.debug(f"Automatic sudo usage: {config.wireguard_use_sudo}")
 BASE_DIR = config.wireguard_base_dir
 Path(BASE_DIR).mkdir(parents=True, exist_ok=True)
 
-interface_service = InterfaceService(BASE_DIR)
-peer_service = PeerService(BASE_DIR)
 config_service = ConfigService(BASE_DIR, use_systemd=config.wireguard_use_systemd)
+interface_service = InterfaceService(BASE_DIR, config_service)
+peer_service = PeerService(BASE_DIR, config_service)
 state_service = StateService(BASE_DIR)
 host_info_service = HostInfoService(BASE_DIR)
 
@@ -78,6 +79,32 @@ try:
     host_info_service.update_host_info()
 except Exception as e:
     logger.error(f"Failed to update host info on startup: {e}")
+
+# Construct Access Control List on startup
+try:
+    acl = AccessControl(config.allowed_proxies, config.allowed_ips)
+    app.config['ACCESS_CONTROL'] = acl
+    logger.info("AccessControl constructed from configuration")
+except Exception as e:
+    logger.error(f"Failed to construct AccessControl: {e}")
+
+
+@app.before_request
+def enforce_acl():
+    # Enforce ACL for API endpoints and for the frontend index page
+    is_api = request.path.startswith('/api/')
+    is_index = request.path in ('', '/', '/index.html')
+    if not (is_api or is_index):
+        return None
+
+    acl_obj = app.config.get('ACCESS_CONTROL')
+    if not acl_obj:
+        return None
+
+    allowed, reason = acl_obj.is_allowed(request)
+    if not allowed:
+        logger.warning(f"Access denied by ACL: {reason} - remote={request.remote_addr} path={request.path}")
+        return jsonify({'error': 'Access denied by ACL', 'reason': reason}), 403
 
 interface_bp = create_interface_routes(interface_service, host_info_service)
 peer_bp = create_peer_routes(peer_service)

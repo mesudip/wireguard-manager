@@ -261,7 +261,15 @@ def wait_for_ready(base_url, mode, container=None):
 
 def pytest_generate_tests(metafunc):
     if "docker_stack" in metafunc.fixturenames:
-        if metafunc.config.getoption("host"):
+        # Some test runners or environments may not register the --host option.
+        # Be defensive: if the option is missing, default to container modes.
+        use_host = False
+        try:
+            use_host = bool(metafunc.config.getoption("host"))
+        except Exception:
+            use_host = False
+
+        if use_host:
             metafunc.parametrize("docker_stack", ["host-standard", "host-systemd"], indirect=True)
         else:
             metafunc.parametrize("docker_stack", ["standard", "systemd"], indirect=True)

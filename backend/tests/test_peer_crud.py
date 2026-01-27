@@ -37,11 +37,27 @@ def test_peer_lifecycle(api_client, test_interface):
     response = api_client.get_peer(test_interface, peer_name)
     assert response.json()['allowed_ips'] == new_allowed_ips
 
+    # 4b. Rename peer
+    new_name = f"{peer_name}_renamed"
+    response = api_client.update_peer(test_interface, peer_name, name=new_name)
+    assert response.status_code == 200
+
+    # Old name should no longer exist
+    response = api_client.get_peer(test_interface, peer_name)
+    assert response.status_code == 404
+
+    # New name should exist and preserve the allowed IPs
+    response = api_client.get_peer(test_interface, new_name)
+    assert response.status_code == 200
+    assert response.json()['allowed_ips'] == new_allowed_ips
+
     # 5. Delete Peer
-    response = api_client.delete_peer(test_interface, peer_name)
+    # delete by new name if renamed
+    target_for_delete = new_name if 'new_name' in locals() else peer_name
+    response = api_client.delete_peer(test_interface, target_for_delete)
     assert response.status_code == 200
     
-    response = api_client.get_peer(test_interface, peer_name)
+    response = api_client.get_peer(test_interface, target_for_delete)
     assert response.status_code == 404
 
 
@@ -135,3 +151,25 @@ def test_get_non_existent_peer(api_client, test_interface):
 def test_delete_non_existent_peer(api_client, test_interface):
     response = api_client.delete_peer(test_interface, "nonexistent_peer")
     assert response.status_code == 404
+
+
+def test_rename_peer_conflict(api_client, test_interface):
+    """Ensure renaming a peer to an existing peer name fails with 400."""
+    import uuid
+    # Create two peers
+    p1 = f"peer_{uuid.uuid4().hex[:4]}"
+    p2 = f"peer_{uuid.uuid4().hex[:4]}"
+    response = api_client.add_peer(test_interface, name=p1, allowed_ips="10.0.0.10/32")
+    assert response.status_code == 201
+    response = api_client.add_peer(test_interface, name=p2, allowed_ips="10.0.0.11/32")
+    assert response.status_code == 201
+
+    try:
+        # Attempt to rename p1 to p2 (should fail)
+        response = api_client.update_peer(test_interface, p1, name=p2)
+        assert response.status_code == 400
+        assert "already exists" in response.json().get('error', '').lower()
+    finally:
+        # Cleanup
+        api_client.delete_peer(test_interface, p1)
+        api_client.delete_peer(test_interface, p2)

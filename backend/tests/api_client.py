@@ -64,12 +64,16 @@ class APIClient:
     def get_peer(self, interface: str, peer_name: str) -> requests.Response:
         return requests.get(f"{self.base_url}/api/interfaces/{interface}/peers/{peer_name}")
 
-    def update_peer(self, interface: str, peer_name: str, allowed_ips: Optional[str] = None, endpoint: Optional[str] = None) -> requests.Response:
+    def update_peer(self, interface: str, peer_name: str, allowed_ips: Optional[str] = None, endpoint: Optional[str] = None, name: Optional[str] = None, public_key: Optional[str] = None) -> requests.Response:
         data = {}
-        if allowed_ips:
+        if allowed_ips is not None:
             data['allowed_ips'] = allowed_ips
-        if endpoint:
+        if endpoint is not None:
             data['endpoint'] = endpoint
+        if name is not None:
+            data['name'] = name
+        if public_key is not None:
+            data['public_key'] = public_key
         return requests.put(f"{self.base_url}/api/interfaces/{interface}/peers/{peer_name}", json=data)
 
     def delete_peer(self, interface: str, peer_name: str) -> requests.Response:

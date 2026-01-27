@@ -37,6 +37,10 @@ class AppConfig:
             'max_bytes': '10485760',  # 10MB
             'backup_count': '5',
         },
+        'security': {
+            'allowed_proxies': '',
+            'allowed_ips': '',
+        },
     }
     
     def __init__(self, config_path: Optional[str] = None):
@@ -67,8 +71,14 @@ class AppConfig:
         # Format: WG_<SECTION>_<KEY> (e.g., WG_SERVER_PORT, WG_WIREGUARD_USE_SUDO)
         for section in self.DEFAULTS:
             for key in self.DEFAULTS[section]:
-                env_key = f"WG_{section.upper()}_{key.upper()}"
-                env_value = os.environ.get(env_key)
+                # Primary: prefixed form (backwards-compatible)
+                env_key_prefixed = f"WG_{section.upper()}_{key.upper()}"
+                env_value = os.environ.get(env_key_prefixed)
+                # Secondary: docker-friendly unprefixed form (SECTION_KEY)
+                if env_value is None:
+                    env_key_unprefixed = f"{section.upper()}_{key.upper()}"
+                    env_value = os.environ.get(env_key_unprefixed)
+
                 if env_value is not None:
                     if section not in self.config:
                         self.config.add_section(section)
@@ -109,6 +119,14 @@ class AppConfig:
         if not value:
             return fallback or []
         return [item.strip() for item in value.split(',')]
+
+    @property
+    def allowed_proxies(self) -> list:
+        return self.get_list('security', 'allowed_proxies', [])
+
+    @property
+    def allowed_ips(self) -> list:
+        return self.get_list('security', 'allowed_ips', [])
     
     # Convenience properties
     @property

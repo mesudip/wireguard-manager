@@ -96,3 +96,20 @@ def validate_endpoint(endpoint: str):
                  raise ConfigurationException(f"Invalid address in endpoint: {address_part}")
 
     validate_port(port_part)
+
+
+def validate_peer_name(name: str):
+    if not name:
+        raise ConfigurationException("Peer name is required")
+
+    # Disallow path separators and control characters
+    if '/' in name or '\\' in name or '\x00' in name:
+        raise ConfigurationException("Peer name contains invalid characters")
+
+    # Limit length to a reasonable filename size
+    if len(name) > 64:
+        raise ConfigurationException("Peer name must be at most 64 characters")
+
+    # Allow letters, numbers, underscores, dashes, dots
+    if not re.match(r'^[a-zA-Z0-9_.-]+$', name):
+        raise ConfigurationException("Invalid peer name. Only letters, numbers, underscores, dashes and dots are allowed.")

@@ -3,12 +3,25 @@ from typing import List, Optional
 from models.types import WireGuardConfig, PeerResponse
 from services.config import parse_config, write_config
 from services.crypto import generate_keys
+from services.config_service import ConfigService
 from utils.validators import validate_ip_address, validate_endpoint
 
-
 class PeerService:
-    def __init__(self, base_dir: str):
+    def __init__(self, base_dir: str, config_service: ConfigService):
         self.base_dir = base_dir
+        self.config_service = config_service
+
+    def _sync_interface(self, interface: str) -> None:
+        """Attempt to sync the interface folder into the final config file.
+
+        This helper keeps ConfigService usage inside the service layer so
+        routes don't need to construct ConfigService objects.
+        """
+        try:
+            self.config_service.sync_config(interface)
+        except Exception:
+            # Best effort: do not raise to avoid breaking API flow when sync fails
+            pass
     
     def list_peers(self, interface: str) -> List[PeerResponse]:
         """List all peers for an interface."""
@@ -178,7 +191,9 @@ class PeerService:
         }
         
         write_config(peer_path, peer_config)
-        
+        # Attempt to sync the assembled interface config into the final file
+        self._sync_interface(interface)
+
         return {
             "name": name,
             "public_key": public_key,
@@ -213,7 +228,9 @@ class PeerService:
         interface: str, 
         peer_name: str,
         allowed_ips: Optional[str] = None,
-        endpoint: Optional[str] = None
+        endpoint: Optional[str] = None,
+        new_name: Optional[str] = None,
+        public_key: Optional[str] = None
     ) -> None:
         """Update a specific peer."""
         peer_path = os.path.join(self.base_dir, interface, f"{peer_name}.conf")
@@ -263,7 +280,31 @@ class PeerService:
             validate_endpoint(endpoint)
             peer_data['Endpoint'] = endpoint
         
-        write_config(peer_path, peer_config)
+        # Allow updating public key
+        if public_key is not None:
+            if public_key:
+                peer_data['PublicKey'] = public_key
+            else:
+                # If explicitly blanked, remove the key
+                if 'PublicKey' in peer_data:
+                    del peer_data['PublicKey']
+
+        # Handle renaming: write to new file and remove old if requested
+        if new_name and new_name != peer_name:
+            # Validate new name
+            from utils.validators import validate_peer_name
+            validate_peer_name(new_name)
+            new_peer_path = os.path.join(self.base_dir, interface, f"{new_name}.conf")
+            if os.path.exists(new_peer_path):
+                raise ValueError("A peer with the new name already exists")
+
+            write_config(new_peer_path, peer_config)
+            os.remove(peer_path)
+        else:
+            write_config(peer_path, peer_config)
+
+        # Sync final interface config after update/rename
+        self._sync_interface(interface)
     
     def delete_peer(self, interface: str, peer_name: str) -> None:
         """Delete a specific peer."""
@@ -271,5 +312,7 @@ class PeerService:
         
         if not os.path.exists(peer_path):
             raise FileNotFoundError("Peer not found")
-        
         os.remove(peer_path)
+
+        # Sync final interface config after deletion
+        self._sync_interface(interface)

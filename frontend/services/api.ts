@@ -134,7 +134,7 @@ export const addPeer = async (interfaceName: string, peer: { name: string, allow
     return transformConfigPeer(data);
 };
 
-export const updatePeer = async (interfaceName: string, peerName: string, peerData: { allowed_ips?: string, endpoint?: string, public_key?: string }): Promise<{ success: boolean }> => {
+export const updatePeer = async (interfaceName: string, peerName: string, peerData: { name?: string, allowed_ips?: string, endpoint?: string, public_key?: string }): Promise<{ success: boolean }> => {
     return apiFetch(`${API_BASE_URL}/interfaces/${interfaceName}/peers/${encodeURIComponent(peerName)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },

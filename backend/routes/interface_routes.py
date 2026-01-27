@@ -80,6 +80,7 @@ def create_interface_routes(interface_service: InterfaceService, host_info_servi
             post_down=data.get('post_down'),
             dns=data.get('dns')
         )
+        # InterfaceService handles syncing; return result
         return jsonify(result), 201
     
     @interface_bp.route('/interfaces/<interface>', methods=['GET'])
@@ -154,6 +155,7 @@ def create_interface_routes(interface_service: InterfaceService, host_info_servi
             post_down=data.get('post_down'),
             dns=data.get('dns')
         )
+        # InterfaceService handles syncing; return result
         return jsonify({"message": "Interface updated successfully"})
     
     @interface_bp.route('/interfaces/<interface>', methods=['DELETE'])
@@ -185,6 +187,7 @@ def create_interface_routes(interface_service: InterfaceService, host_info_servi
                   schema: {"$ref": "#/components/schemas/Error"}
         """
         interface_service.delete_interface(interface)
+        # No need to sync after delete; folder removed
         return jsonify({"message": "Interface deleted successfully"})
 
     @interface_bp.route('/host/info', methods=['POST'])

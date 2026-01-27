@@ -48,7 +48,7 @@ const PeerList: React.FC<PeerListProps> = ({ peers, refreshData, iface, hostInfo
     };
 
     const handleUpdatePeer = async (peerName: string, peerData: { allowed_ips?: string, endpoint?: string, public_key?: string }) => {
-        await api.updatePeer(iface.name, peerName, peerData);
+        await api.updatePeer(iface.name, peerName, peerData as any);
         setIsEditModalOpen(false);
         setEditingPeer(null);
         refreshData();

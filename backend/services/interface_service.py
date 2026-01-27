@@ -5,6 +5,7 @@ from typing import List, Optional, Dict, Any
 from models.types import WireGuardConfig, InterfaceResponse, InterfaceDetailResponse
 from services.config import parse_config, write_config
 from services.crypto import generate_keys, get_public_key
+from services.config_service import ConfigService
 from exceptions.wireguard_exceptions import (
     InterfaceNotFoundException,
     ConfigurationException
@@ -17,10 +18,22 @@ from utils.validators import (
 
 
 class InterfaceService:
-    def __init__(self, base_dir: str):
+    def __init__(self, base_dir: str, config_service: ConfigService):
         self.base_dir = base_dir
+        self.config_service = config_service
         Path(base_dir).mkdir(parents=True, exist_ok=True, mode=0o750)
     
+    def _sync_interface(self, name: str) -> None:
+        """Sync the interface folder into the final config file using ConfigService.
+
+        Kept inside the service layer to avoid routes creating ConfigService.
+        """
+        try:
+            self.config_service.sync_config(name)
+        except Exception:
+            # Best effort; do not raise to avoid breaking API flow when sync fails
+            pass
+
     def list_interfaces(self) -> List[str]:
         """List all WireGuard interfaces."""
         interfaces = []
@@ -75,6 +88,8 @@ class InterfaceService:
         
         config_path = os.path.join(interface_dir, f"{name}.conf")
         write_config(config_path, config)
+        # Sync assembled interface folder into final config
+        self._sync_interface(name)
         
         return {
             "name": name,
@@ -160,6 +175,8 @@ class InterfaceService:
                 del config['Interface']['DNS']
         
         write_config(config_path, config)
+        # Sync assembled interface folder into final config
+        self._sync_interface(name)
     
     def delete_interface(self, name: str) -> None:
         """Delete a specific interface."""

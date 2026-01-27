@@ -83,18 +83,18 @@ def create_peer_routes(peer_service: PeerService):
             return jsonify({"error": "Peer name is required"}), 400
         
         try:
-            result = peer_service.add_peer(
-                interface=interface,
-                name=peer_name,
-                allowed_ips=data.get('allowed_ips'),
-                endpoint=data.get('endpoint', ''),
-                public_key=data.get('public_key')
-            )
-            return jsonify(result), 201
+          result = peer_service.add_peer(
+            interface=interface,
+            name=peer_name,
+            allowed_ips=data.get('allowed_ips'),
+            endpoint=data.get('endpoint', ''),
+            public_key=data.get('public_key')
+          )
+          return jsonify(result), 201
         except FileNotFoundError:
-            return jsonify({"error": "Interface not found"}), 404
+          return jsonify({"error": "Interface not found"}), 404
         except ValueError as e:
-            return jsonify({"error": str(e)}), 400
+          return jsonify({"error": str(e)}), 400
     
     @peer_bp.route('/interfaces/<interface>/peers/<peer_name>', methods=['GET'])
     def get_peer(interface, peer_name):
@@ -173,17 +173,19 @@ def create_peer_routes(peer_service: PeerService):
         data = request.json
         
         try:
-            peer_service.update_peer(
-                interface=interface,
-                peer_name=peer_name,
-                allowed_ips=data.get('allowed_ips'),
-                endpoint=data.get('endpoint')
-            )
-            return jsonify({"message": "Peer updated successfully"})
+          peer_service.update_peer(
+            interface=interface,
+            peer_name=peer_name,
+            allowed_ips=data.get('allowed_ips'),
+            endpoint=data.get('endpoint'),
+            new_name=data.get('name'),
+            public_key=data.get('public_key')
+          )
+          return jsonify({"message": "Peer updated successfully"})
         except FileNotFoundError:
-            return jsonify({"error": "Peer not found"}), 404
+          return jsonify({"error": "Peer not found"}), 404
         except ValueError as e:
-            return jsonify({"error": str(e)}), 500
+          return jsonify({"error": str(e)}), 400
     
     @peer_bp.route('/interfaces/<interface>/peers/<peer_name>', methods=['DELETE'])
     def delete_peer(interface, peer_name):
@@ -218,8 +220,8 @@ def create_peer_routes(peer_service: PeerService):
                   schema: {"$ref": "#/components/schemas/Error"}
         """
         try:
-            peer_service.delete_peer(interface, peer_name)
-            return jsonify({"message": "Peer deleted successfully"})
+          peer_service.delete_peer(interface, peer_name)
+          return jsonify({"message": "Peer deleted successfully"})
         except FileNotFoundError:
             return jsonify({"error": "Peer not found"}), 404
     
