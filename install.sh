@@ -17,6 +17,18 @@ FRONTEND_DIR="frontend"
 FRONTEND_DIST="$FRONTEND_DIR/dist"
 BACKEND_DIR="backend"
 
+# Error handler for stylized failure reporting
+error_handler() {
+    local exit_code=$?
+    echo -e "\n${RED}================================================${NC}"
+    echo -e "${RED}✗ WireGuard Manager installation failed!${NC}"
+    echo -e "${RED}================================================${NC}"
+    echo -e "${RED}Error occurred on line $(caller | cut -d' ' -f1)${NC}"
+    exit $exit_code
+}
+
+trap 'error_handler' ERR
+
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then 
     echo -e "${RED}Error: This script must be run as root${NC}"
@@ -37,20 +49,21 @@ else
         echo "You can install Node.js from: https://nodejs.org/"
         exit 1
     fi
-    
-    # Check if npm is installed
-    if ! command -v npm &> /dev/null; then
-        echo -e "${RED}Error: npm is not installed. Please install npm first.${NC}"
+
+    # Check if yarn is installed
+    if ! command -v yarn &> /dev/null; then
+        echo -e "${RED}Error: yarn is not installed. Please install yarn first.${NC}"
+        echo "You can install it with: npm install --global yarn"
         exit 1
     fi
     
     # Install dependencies
     echo -e "${YELLOW}Installing frontend dependencies...${NC}"
-    (cd "$FRONTEND_DIR" && npm install)
+    (cd "$FRONTEND_DIR" && yarn)
     
     # Build the frontend
     echo -e "${YELLOW}Building frontend...${NC}"
-    (cd "$FRONTEND_DIR" && npm run build)
+    (cd "$FRONTEND_DIR" && yarn build)
     
     # Verify build was successful
     if [ ! -d "$FRONTEND_DIST" ] || [ ! "$(ls -A "$FRONTEND_DIST")" ]; then

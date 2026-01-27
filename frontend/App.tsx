@@ -149,7 +149,7 @@ const App: React.FC = () => {
         if (window.confirm(`Are you sure you want to delete the interface "${name}"? This action cannot be undone.`)) {
             try {
                 await api.deleteInterface(name);
-                setSelectedInterface(null); 
+                setSelectedInterface(null);
                 await fetchInterfaces();
             } catch (err) {
                 setError(err instanceof Error ? err.message : `Failed to delete interface ${name}.`);
@@ -157,7 +157,7 @@ const App: React.FC = () => {
             }
         }
     };
-    
+
     const handleOpenHostEditModal = () => {
         if (hostInfo) {
             setEditedHostIPs(hostInfo.ips.join('\n'));
@@ -170,7 +170,7 @@ const App: React.FC = () => {
         setHostEditError(null);
         setIsSavingHostIPs(true);
         const newIPs = editedHostIPs.split(/[\s,\n]+/).map(ip => ip.trim()).filter(Boolean);
-        
+
         try {
             const updatedHostInfo = await api.updateHostIPs(newIPs);
             setHostInfo(updatedHostInfo);
@@ -235,9 +235,9 @@ const App: React.FC = () => {
                     selectedInterface={selectedInterface}
                     onSelect={handleSelectInterface}
                 />
-                 <div className="mt-auto pt-4 border-t border-gray-200/50 dark:border-gray-700/50 text-xs text-gray-500 dark:text-gray-400">
+                <div className="mt-auto pt-4 border-t border-gray-200/50 dark:border-gray-700/50 text-xs text-gray-500 dark:text-gray-400">
                     <div className="flex justify-between items-center mb-1">
-                         <p className="font-semibold">
+                        <p className="font-semibold">
                             Host Information
                             {hostInfo && typeof hostInfo.manual !== 'undefined' && (
                                 <span className="ml-2 text-xs font-normal text-gray-400 dark:text-gray-500">
@@ -247,17 +247,17 @@ const App: React.FC = () => {
                         </p>
                         {hostInfo && (
                             <button onClick={handleOpenHostEditModal} className="p-1 rounded text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200/60 dark:hover:bg-gray-700/60 transition-colors">
-                                <PencilIcon className="w-4 h-4"/>
+                                <PencilIcon className="w-4 h-4" />
                             </button>
                         )}
                     </div>
                     {hostInfo ? (
-                         <div className="space-y-1 max-h-24 overflow-y-auto pr-1">
+                        <div className="space-y-1 max-h-24 overflow-y-auto pr-1">
                             {hostInfo.ips && hostInfo.ips.length > 0 ? hostInfo.ips.map(ip => (
                                 <p key={ip} className="font-mono truncate" title={ip}>{ip}</p>
                             )) : <p>No public IPs found</p>}
                             {hostInfo.message && <p className="text-gray-400 dark:text-gray-500 text-xs mt-1">{hostInfo.message}</p>}
-                         </div>
+                        </div>
                     ) : (
                         <p>Loading host info...</p>
                     )}
@@ -278,15 +278,26 @@ const App: React.FC = () => {
                         onDeleteInterface={handleDeleteInterface}
                     />
                 ) : (
-                    <div className="flex items-center justify-center h-full">
-                        <div className="text-center">
-                            <ServerIcon className="w-24 h-24 mx-auto text-gray-500 dark:text-gray-600" />
-                            <h2 className="mt-4 text-2xl font-semibold text-gray-500 dark:text-gray-400">
+                    <div className="flex flex-col items-center justify-center h-full">
+                        <ServerIcon className="w-24 h-24 text-gray-400 dark:text-gray-600 mb-6" />
+                        <div className="text-center max-w-md">
+                            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
                                 {isLoading ? 'Loading Interfaces...' : 'No Interface Selected'}
                             </h2>
-                            <p className="mt-2 text-gray-600 dark:text-gray-500">
-                                {isLoading ? 'Please wait.' : error ? error : 'Select an interface or create a new one.'}
-                            </p>
+
+                            {error ? (
+                                <div className="mt-6 p-4 bg-red-100 dark:bg-red-900/20 border border-red-400/30 dark:border-red-500/30 text-red-700 dark:text-red-300 rounded-lg text-sm flex items-start text-left shadow-sm">
+                                    <ExclamationIcon className="w-5 h-5 mr-3 mt-0.5 flex-shrink-0" />
+                                    <div>
+                                        <p className="font-semibold mb-1">An error occurred</p>
+                                        <p className="opacity-90">{error}</p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <p className="text-gray-600 dark:text-gray-500">
+                                    {isLoading ? 'Please wait.' : 'Select an interface from the sidebar or create a new one to get started.'}
+                                </p>
+                            )}
                         </div>
                     </div>
                 )}
@@ -294,7 +305,7 @@ const App: React.FC = () => {
 
             <Modal isOpen={isCreateModalOpen} onClose={() => setCreateModalOpen(false)} title="Create New Interface">
                 <div className="space-y-4">
-                     <div>
+                    <div>
                         <label htmlFor="interfaceName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Interface Name
                         </label>
@@ -305,7 +316,7 @@ const App: React.FC = () => {
                             className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-gray-900 dark:text-white focus:ring-gray-500 focus:border-gray-500 dark:focus:ring-cyan-500 dark:focus:border-cyan-500"
                         />
                     </div>
-                     <div>
+                    <div>
                         <label htmlFor="address" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Interface Address
                         </label>
@@ -316,7 +327,7 @@ const App: React.FC = () => {
                             className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-gray-900 dark:text-white focus:ring-gray-500 focus:border-gray-500 dark:focus:ring-cyan-500 dark:focus:border-cyan-500"
                         />
                     </div>
-                     <div>
+                    <div>
                         <label htmlFor="port" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Listen Port
                         </label>
@@ -333,10 +344,10 @@ const App: React.FC = () => {
                     </div>
                 </div>
             </Modal>
-            
+
             <Modal isOpen={isHostEditModalOpen} onClose={() => setHostEditModalOpen(false)} title="Edit Host IPs">
                 <div className="space-y-4">
-                     <div>
+                    <div>
                         <label htmlFor="hostIPs" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             IP Addresses
                         </label>

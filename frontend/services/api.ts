@@ -4,7 +4,7 @@ import {
     ApiInterface, ApiPeer, ApiInterfaceState, ApiConfigDiff, ApiStateDiff, ApiInterfaceListResponse
 } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://test1.gateway.sireto.net/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 const apiFetch = async (url: string, options?: RequestInit) => {
     try {
@@ -72,7 +72,7 @@ const transformInterfaceState = (apiState: ApiInterfaceState): InterfaceState =>
     name: apiState.interface,
     publicKey: apiState.public_key,
     listenPort: apiState.listening_port,
-    peers: apiState.peers.map(transformStatePeer),
+    peers: (apiState.peers || []).map(transformStatePeer),
 });
 
 
@@ -81,7 +81,7 @@ const transformInterfaceState = (apiState: ApiInterfaceState): InterfaceState =>
 export const getInterfaces = async (): Promise<{ interfaces: Interface[], hostInfo: HostInfo }> => {
     const response: ApiInterfaceListResponse = await apiFetch(`${API_BASE_URL}/interfaces`);
 
-    const interfaceNames = response.wireguard;
+    const interfaceNames = response.wireguard || [];
 
     // Use allSettled so one failed interface (e.g. 404) doesn't break the entire dashboard
     const results = await Promise.allSettled(
@@ -122,7 +122,7 @@ export const deleteInterface = async (interfaceName: string): Promise<{ success:
 
 export const getPeers = async (interfaceName: string): Promise<ConfigPeer[]> => {
     const data: ApiPeer[] = await apiFetch(`${API_BASE_URL}/interfaces/${interfaceName}/peers`);
-    return data.map(transformConfigPeer);
+    return (data || []).map(transformConfigPeer);
 };
 
 export const addPeer = async (interfaceName: string, peer: { name: string, allowed_ips: string, endpoint?: string, public_key?: string }): Promise<ConfigPeer> => {
