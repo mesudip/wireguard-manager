@@ -123,24 +123,30 @@ def docker_stack(request, docker_client):
         "detach": True,
         "name": container_name,
         "ports": {'5000/tcp': None},
-        "cap_add": ["NET_ADMIN"],
+        "cap_add": ["NET_ADMIN", "SYS_MODULE"],
         "environment": env
     }
     
     if mode == "systemd":
         kwargs["privileged"] = True
-        kwargs["volumes"] = {'/sys/fs/cgroup': {'bind': '/sys/fs/cgroup', 'mode': 'rw'}}
+        # systemd requires SYS_ADMIN and specific mounts
+        if "SYS_ADMIN" not in kwargs["cap_add"]:
+            kwargs["cap_add"].append("SYS_ADMIN")
+        
+        kwargs["volumes"] = {
+            '/sys/fs/cgroup': {'bind': '/sys/fs/cgroup', 'mode': 'rw'},
+            '/lib/modules': {'bind': '/lib/modules', 'mode': 'ro'}
+        }
         kwargs["tmpfs"] = {'/run': '', '/run/lock': '', '/tmp': '', '/run/wireguard': ''}
-        kwargs["cgroupns_mode"] = "host"
     
     try:
         container = docker_client.containers.run(image_tag, **kwargs)
     except TypeError as e:
-        if 'cgroupns_mode' in str(e) and mode == "systemd":
-            del kwargs['cgroupns_mode']
-            container = docker_client.containers.run(image_tag, **kwargs)
-        else:
-            raise
+        # Fallback for older docker-py that doesn't support some newer flags
+        print(f"Docker run TypeError: {e}. Retrying without redundant flags...")
+        container = docker_client.containers.run(image_tag, detach=True, name=container_name, ports={'5000/tcp': None}, privileged=True)
+    except Exception as e:
+        pytest.fail(f"Failed to start {mode} container: {e}")
 
     # Give it a second to stabilize and get network settings
     time.sleep(3)
@@ -161,7 +167,9 @@ def docker_stack(request, docker_client):
         error = state.get('Error', 'N/A')
         
         try:
-            logs = container.logs().decode('utf-8', errors='replace')
+            # Explicitly fetch both stdout and stderr
+            logs_raw = container.logs(stdout=True, stderr=True, tail=300)
+            logs = logs_raw.decode('utf-8', errors='replace')
         except Exception as e:
             logs = f"Failed to fetch logs: {e}"
             
@@ -171,7 +179,7 @@ def docker_stack(request, docker_client):
             f"Status: {status}\n"
             f"ExitCode: {exit_code}\n"
             f"Error: {error}\n"
-            f"--- CONTAINER LOGS ---\n"
+            f"--- CONTAINER LOGS (STDOUT+STDERR) ---\n"
             f"{logs}\n"
             f"---------------------------\n"
         )
@@ -213,10 +221,11 @@ def wait_for_ready(base_url, mode, container=None):
     if not ready:
         if container:
             try:
-                logs = container.logs().decode('utf-8', errors='replace')
+                logs_raw = container.logs(stdout=True, stderr=True, tail=500)
+                logs = logs_raw.decode('utf-8', errors='replace')
                 print(f"\n--- API READINESS FAILURE LOGS ({mode}) ---\n{logs}\n--- END LOGS ---")
             except:
-                pass
+                print(f"Failed to fetch logs for {mode} container.")
         pytest.fail(f"API ({mode}) did not become ready in time at {base_url}.")
 
 def pytest_generate_tests(metafunc):
