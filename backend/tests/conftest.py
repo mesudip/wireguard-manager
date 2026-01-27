@@ -138,6 +138,8 @@ def docker_stack(request, docker_client):
             '/lib/modules': {'bind': '/lib/modules', 'mode': 'ro'}
         }
         kwargs["tmpfs"] = {'/run': '', '/run/lock': '', '/tmp': '', '/run/wireguard': ''}
+        # In GHA, cgroupns_mode="host" is often mandatory for jrei/systemd-ubuntu
+        kwargs["cgroupns_mode"] = "host"
     
     try:
         container = docker_client.containers.run(image_tag, **kwargs)
@@ -220,12 +222,25 @@ def wait_for_ready(base_url, mode, container=None):
     
     if not ready:
         if container:
+            container.reload()
+            current_status = container.attrs.get('State', {}).get('Status', 'unknown')
+            print(f"Readiness failed. Container status: {current_status}")
+            
             try:
-                logs_raw = container.logs(stdout=True, stderr=True, tail=500)
+                # 1. Try standard logs
+                logs_raw = container.logs(stdout=True, stderr=True, tail=300)
                 logs = logs_raw.decode('utf-8', errors='replace')
                 print(f"\n--- API READINESS FAILURE LOGS ({mode}) ---\n{logs}\n--- END LOGS ---")
-            except:
-                print(f"Failed to fetch logs for {mode} container.")
+                
+                # 2. If systemd, try journalctl (often has the real info)
+                if "systemd" in mode and current_status == "running":
+                    print(f"Attempting to fetch journalctl output from {mode} container...")
+                    result = container.exec_run("journalctl -n 100 --no-pager")
+                    journal = result.output.decode('utf-8', errors='replace')
+                    print(f"\n--- INTERNAL SYSTEMD JOURNAL ---\n{journal}\n--- END JOURNAL ---")
+            except Exception as e:
+                print(f"Failed to fetch detailed logs for {mode} container: {e}")
+                
         pytest.fail(f"API ({mode}) did not become ready in time at {base_url}.")
 
 def pytest_generate_tests(metafunc):
