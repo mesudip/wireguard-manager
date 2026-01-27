@@ -80,20 +80,33 @@ def docker_stack(request, docker_client):
         return
 
     # Docker modes
-    image_tag = IMAGE_NAME_STANDARD if mode == "standard" else IMAGE_NAME_SYSTEMD
+    image_tag = f"{IMAGE_NAME_STANDARD}:latest" if mode == "standard" else f"{IMAGE_NAME_SYSTEMD}:latest"
     dockerfile = "Dockerfile" if mode == "standard" else "tests/Dockerfile.systemd"
     
-    print(f"\nBuilding {mode} Docker image {image_tag}...")
-    image, logs = docker_client.images.build(
-        path=os.path.join(os.path.dirname(__file__), ".."),
-        dockerfile=dockerfile,
-        tag=image_tag,
-        nocache=False,
-        rm=True
-    )
-    for log in logs:
-        if 'stream' in log:
-            print(log['stream'].strip())
+    in_ci = os.environ.get("GITHUB_ACTIONS", "false").lower() == "true"
+    force_build = os.environ.get("WG_TEST_FORCE_BUILD", "false").lower() == "true"
+    
+    image_exists = False
+    if in_ci and not force_build:
+        try:
+            docker_client.images.get(image_tag)
+            print(f"\nUsing pre-existing Docker image {image_tag}")
+            image_exists = True
+        except docker.errors.ImageNotFound:
+            pass
+
+    if not image_exists:
+        print(f"\nBuilding {mode} Docker image {image_tag}...")
+        image, logs = docker_client.images.build(
+            path=os.path.join(os.path.dirname(__file__), ".."),
+            dockerfile=dockerfile,
+            tag=image_tag,
+            nocache=False,
+            rm=True
+        )
+        for log in logs:
+            if 'stream' in log:
+                print(log['stream'].strip())
 
     container_name = f"wg-test-{mode}-{uuid.uuid4().hex[:8]}"
     print(f"Starting {mode} container {container_name}...")
@@ -159,7 +172,7 @@ def wait_for_ready(base_url, mode):
     print(f"Waiting for {mode} API to be ready at {base_url}...")
     start_time = time.time()
     ready = False
-    timeout = 90 if "systemd" in mode else 30
+    timeout = 120 if "systemd" in mode else 45
     while time.time() - start_time < timeout:
         try:
             response = requests.get(f"{base_url}/api/health", timeout=2)
