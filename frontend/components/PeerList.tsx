@@ -107,6 +107,7 @@ DNS = 8.8.8.8
 PublicKey = ${iface.publicKey}
 AllowedIPs = 0.0.0.0/0, ::/0
 Endpoint = ${endpoint}
+${peer.persistentKeepalive ? `PersistentKeepalive = ${peer.persistentKeepalive}\n` : ''}
 `;
         setConfigText(peerConfig);
 
@@ -122,6 +123,7 @@ Endpoint = ${endpoint}
         const peerForModal: Peer = 'transfer' in peer ? peer : {
             ...peer,
             endpoint: peer.endpoint || '',
+            persistentKeepalive: peer.persistentKeepalive || '',
             latestHandshake: 'N/A',
             transfer: { received: '', sent: '' }
         };

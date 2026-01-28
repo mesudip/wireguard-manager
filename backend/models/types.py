@@ -75,6 +75,7 @@ class PeerResponse(TypedDict, total=False):
     private_key: Optional[str]
     allowed_ips: str
     endpoint: str
+    persistent_keepalive: Optional[str]
     warnings: Optional[str]
     commands: Optional[List[CommandLog]]
 

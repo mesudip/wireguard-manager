@@ -56,15 +56,18 @@ const transformConfigPeer = (apiPeer: ApiPeer): ConfigPeer => ({
     privateKey: apiPeer.private_key,
     allowedIPs: apiPeer.allowed_ips,
     endpoint: apiPeer.endpoint,
+    persistentKeepalive: apiPeer.persistent_keepalive,
 });
 
-const transformStatePeer = (apiPeerState: any): StatePeer => ({
+const transformStatePeer = (apiPeerState: ApiPeerState): StatePeer => ({
     publicKey: apiPeerState.public_key,
     endpoint: apiPeerState.endpoint,
     allowedIPs: apiPeerState.allowed_ips,
+    persistentKeepalive: apiPeerState.persistent_keepalive,
     latestHandshake: apiPeerState.latest_handshake,
     transferRx: apiPeerState.transfer_rx,
     transferTx: apiPeerState.transfer_tx,
+    transfer: apiPeerState.transfer,
 });
 
 
@@ -125,7 +128,7 @@ export const getPeers = async (interfaceName: string): Promise<ConfigPeer[]> => 
     return (data || []).map(transformConfigPeer);
 };
 
-export const addPeer = async (interfaceName: string, peer: { name: string, allowed_ips: string, endpoint?: string, public_key?: string }): Promise<ConfigPeer> => {
+export const addPeer = async (interfaceName: string, peer: { name: string, allowed_ips: string, endpoint?: string, public_key?: string, persistent_keepalive?: string }): Promise<ConfigPeer> => {
     const data: ApiPeer = await apiFetch(`${API_BASE_URL}/interfaces/${interfaceName}/peers`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -134,7 +137,7 @@ export const addPeer = async (interfaceName: string, peer: { name: string, allow
     return transformConfigPeer(data);
 };
 
-export const updatePeer = async (interfaceName: string, peerName: string, peerData: { name?: string, allowed_ips?: string, endpoint?: string, public_key?: string }): Promise<{ success: boolean }> => {
+export const updatePeer = async (interfaceName: string, peerName: string, peerData: { name?: string, allowed_ips?: string, endpoint?: string, public_key?: string, persistent_keepalive?: string }): Promise<{ success: boolean }> => {
     return apiFetch(`${API_BASE_URL}/interfaces/${interfaceName}/peers/${encodeURIComponent(peerName)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },

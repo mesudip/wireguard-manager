@@ -9,7 +9,7 @@ interface EditPeerModalProps {
     isOpen: boolean;
     onClose: () => void;
     peer: Peer;
-    onUpdatePeer: (peerName: string, peerData: { allowed_ips?: string, endpoint?: string, public_key?: string }) => Promise<void>;
+    onUpdatePeer: (peerName: string, peerData: { name?: string, allowed_ips?: string, endpoint?: string, public_key?: string, persistent_keepalive?: string }) => Promise<void>;
 }
 
 const EditPeerModal: React.FC<EditPeerModalProps> = ({ isOpen, onClose, peer, onUpdatePeer }) => {
@@ -17,6 +17,7 @@ const EditPeerModal: React.FC<EditPeerModalProps> = ({ isOpen, onClose, peer, on
     const [allowedIPsInput, setAllowedIPsInput] = useState('');
     const [name, setName] = useState('');
     const [endpoint, setEndpoint] = useState('');
+    const [persistentKeepalive, setPersistentKeepalive] = useState('');
     const [publicKey, setPublicKey] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -26,6 +27,7 @@ const EditPeerModal: React.FC<EditPeerModalProps> = ({ isOpen, onClose, peer, on
             setName(peer.name);
             setAllowedIPs(peer.allowedIPs ? peer.allowedIPs.split(/[\s,]+/).filter(Boolean) : []);
             setEndpoint(peer.endpoint);
+            setPersistentKeepalive(peer.persistentKeepalive || '');
             setPublicKey(peer.publicKey);
             setAllowedIPsInput('');
             setError(null);
@@ -59,6 +61,7 @@ const EditPeerModal: React.FC<EditPeerModalProps> = ({ isOpen, onClose, peer, on
                 allowed_ips: finalIPs.join(', '),
                 endpoint: endpoint.trim() || undefined,
                 public_key: publicKey.trim(),
+                persistent_keepalive: persistentKeepalive.trim() || undefined
             });
             handleClose();
         } catch (err) {
@@ -102,6 +105,10 @@ const EditPeerModal: React.FC<EditPeerModalProps> = ({ isOpen, onClose, peer, on
                 <div>
                     <label htmlFor="editEndpoint" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Endpoint (Optional)</label>
                     <input type="text" id="editEndpoint" value={endpoint} onChange={(e) => setEndpoint(e.target.value)} placeholder="e.g., 123.123.123.123:51820" className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2" />
+                </div>
+                <div>
+                    <label htmlFor="editPersistentKeepalive" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Persistent Keepalive (Optional)</label>
+                    <input type="number" id="editPersistentKeepalive" value={persistentKeepalive} onChange={(e) => setPersistentKeepalive(e.target.value)} placeholder="e.g., 25" className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2" />
                 </div>
 
                 {error && (

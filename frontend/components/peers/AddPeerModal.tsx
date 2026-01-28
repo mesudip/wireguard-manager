@@ -7,7 +7,7 @@ import { ExclamationIcon } from '../icons/Icons';
 interface AddPeerModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onAddPeer: (peerData: { name: string, allowed_ips: string, endpoint?: string, public_key?: string }) => Promise<void>;
+    onAddPeer: (peerData: { name: string, allowed_ips: string, endpoint?: string, public_key?: string, persistent_keepalive?: string }) => Promise<void>;
     ifaceName: string;
 }
 
@@ -16,6 +16,7 @@ const AddPeerModal: React.FC<AddPeerModalProps> = ({ isOpen, onClose, onAddPeer,
     const [allowedIPs, setAllowedIPs] = useState<string[]>([]);
     const [allowedIPsInput, setAllowedIPsInput] = useState('');
     const [endpoint, setEndpoint] = useState('');
+    const [persistentKeepalive, setPersistentKeepalive] = useState('');
     const [publicKey, setPublicKey] = useState('');
     const [isAdding, setIsAdding] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -25,6 +26,7 @@ const AddPeerModal: React.FC<AddPeerModalProps> = ({ isOpen, onClose, onAddPeer,
         setAllowedIPs([]);
         setAllowedIPsInput('');
         setEndpoint('');
+        setPersistentKeepalive('');
         setPublicKey('');
         setError(null);
         setIsAdding(false);
@@ -50,7 +52,8 @@ const AddPeerModal: React.FC<AddPeerModalProps> = ({ isOpen, onClose, onAddPeer,
                 name: name.trim(),
                 allowed_ips: finalIPs.join(', '),
                 endpoint: endpoint.trim() || undefined,
-                public_key: publicKey.trim() || undefined
+                public_key: publicKey.trim() || undefined,
+                persistent_keepalive: persistentKeepalive.trim() || undefined
             });
             // The parent will close the modal upon success
             resetForm();
@@ -85,6 +88,12 @@ const AddPeerModal: React.FC<AddPeerModalProps> = ({ isOpen, onClose, onAddPeer,
                 <div>
                     <label htmlFor="endpoint" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Endpoint (Optional)</label>
                     <input type="text" id="endpoint" value={endpoint} onChange={(e) => setEndpoint(e.target.value)} placeholder="e.g., 123.123.123.123:51820" className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2" />
+                </div>
+
+                <div>
+                    <label htmlFor="persistentKeepalive" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Persistent Keepalive (Optional)</label>
+                    <input type="number" id="persistentKeepalive" value={persistentKeepalive} onChange={(e) => setPersistentKeepalive(e.target.value)} placeholder="e.g., 25" className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2" />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Number of seconds between keepalive packets. Used for NAT traversal.</p>
                 </div>
 
                 {error && (

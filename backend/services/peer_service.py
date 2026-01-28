@@ -43,7 +43,8 @@ class PeerService:
                         "name": peer_name,
                         "public_key": peer_data.get('PublicKey', ''),
                         "allowed_ips": peer_data.get('AllowedIPs', ''),
-                        "endpoint": peer_data.get('Endpoint', '')
+                        "endpoint": peer_data.get('Endpoint', ''),
+                        "persistent_keepalive": peer_data.get('PersistentKeepalive', '')
                     })
         
         return peers
@@ -54,7 +55,8 @@ class PeerService:
         name: str, 
         allowed_ips: Optional[str] = None,
         endpoint: str = '',
-        public_key: Optional[str] = None
+        public_key: Optional[str] = None,
+        persistent_keepalive: Optional[str] = None
     ) -> PeerResponse:
         """Add a new peer to an interface."""
         interface_dir = os.path.join(self.base_dir, interface)
@@ -186,7 +188,8 @@ class PeerService:
             "Peers": [{
                 "PublicKey": public_key,
                 "AllowedIPs": allowed_ips,
-                "Endpoint": endpoint
+                "Endpoint": endpoint,
+                "PersistentKeepalive": persistent_keepalive
             }]
         }
         
@@ -200,6 +203,7 @@ class PeerService:
             "private_key": private_key,
             "allowed_ips": allowed_ips,
             "endpoint": endpoint,
+            "persistent_keepalive": persistent_keepalive,
             "warnings": warnings
         }
     
@@ -220,7 +224,8 @@ class PeerService:
             "name": peer_name,
             "public_key": peer_data.get('PublicKey', ''),
             "allowed_ips": peer_data.get('AllowedIPs', ''),
-            "endpoint": peer_data.get('Endpoint', '')
+            "endpoint": peer_data.get('Endpoint', ''),
+            "persistent_keepalive": peer_data.get('PersistentKeepalive', '')
         }
     
     def update_peer(
@@ -230,7 +235,8 @@ class PeerService:
         allowed_ips: Optional[str] = None,
         endpoint: Optional[str] = None,
         new_name: Optional[str] = None,
-        public_key: Optional[str] = None
+        public_key: Optional[str] = None,
+        persistent_keepalive: Optional[str] = None
     ) -> None:
         """Update a specific peer."""
         peer_path = os.path.join(self.base_dir, interface, f"{peer_name}.conf")
@@ -279,6 +285,9 @@ class PeerService:
         if endpoint is not None:
             validate_endpoint(endpoint)
             peer_data['Endpoint'] = endpoint
+        
+        if persistent_keepalive is not None:
+            peer_data['PersistentKeepalive'] = persistent_keepalive
         
         # Allow updating public key
         if public_key is not None:

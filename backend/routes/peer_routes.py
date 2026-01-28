@@ -88,7 +88,8 @@ def create_peer_routes(peer_service: PeerService):
             name=peer_name,
             allowed_ips=data.get('allowed_ips'),
             endpoint=data.get('endpoint', ''),
-            public_key=data.get('public_key')
+            public_key=data.get('public_key'),
+            persistent_keepalive=data.get('persistent_keepalive')
           )
           return jsonify(result), 201
         except FileNotFoundError:
@@ -179,7 +180,8 @@ def create_peer_routes(peer_service: PeerService):
             allowed_ips=data.get('allowed_ips'),
             endpoint=data.get('endpoint'),
             new_name=data.get('name'),
-            public_key=data.get('public_key')
+            public_key=data.get('public_key'),
+            persistent_keepalive=data.get('persistent_keepalive')
           )
           return jsonify({"message": "Peer updated successfully"})
         except FileNotFoundError:

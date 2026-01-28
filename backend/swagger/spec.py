@@ -64,7 +64,8 @@ def get_swagger_spec(app=None):
             "allowed_ips": {"type": "string"},
             "latest_handshake": {"type": "integer"},
             "transfer_rx": {"type": "integer"},
-            "transfer_tx": {"type": "integer"}
+            "transfer_tx": {"type": "integer"},
+            "persistent_keepalive": {"type": "string"}
         }
     })
 
@@ -110,6 +111,7 @@ def get_swagger_spec(app=None):
             "private_key": {"type": "string"},
             "allowed_ips": {"type": "string", "example": "10.0.0.2/32"},
             "endpoint": {"type": "string", "example": "203.0.113.1:51820"},
+            "persistent_keepalive": {"type": "string", "example": "25"},
             "warnings": {"type": "string"},
             "commands": {
                 "type": "array",
@@ -124,7 +126,8 @@ def get_swagger_spec(app=None):
         "properties": {
             "name": {"type": "string", "example": "client1"},
             "allowed_ips": {"type": "string", "example": "10.0.0.2/32"},
-            "endpoint": {"type": "string", "example": "203.0.113.1:51820"}
+            "endpoint": {"type": "string", "example": "203.0.113.1:51820"},
+            "persistent_keepalive": {"type": "string", "example": "25"}
         }
     })
 
@@ -132,7 +135,8 @@ def get_swagger_spec(app=None):
         "type": "object",
         "properties": {
             "allowed_ips": {"type": "string", "example": "10.0.0.2/32"},
-            "endpoint": {"type": "string", "example": "203.0.113.1:51820"}
+            "endpoint": {"type": "string", "example": "203.0.113.1:51820"},
+            "persistent_keepalive": {"type": "string", "example": "25"}
         }
     })
 

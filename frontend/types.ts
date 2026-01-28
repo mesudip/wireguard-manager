@@ -6,6 +6,7 @@ export interface Peer {
     privateKey: string | null;
     allowedIPs: string;
     endpoint: string;
+    persistentKeepalive: string;
     latestHandshake: string; // Formatted string
     transfer: {
         received: string; // Formatted string
@@ -20,6 +21,7 @@ export interface ConfigPeer {
     privateKey: string | null;
     allowedIPs: string;
     endpoint: string | null;
+    persistentKeepalive: string | null;
 }
 
 // Represents a live peer from the /interfaces/{iface}/state endpoint
@@ -27,9 +29,11 @@ export interface StatePeer {
     publicKey: string;
     endpoint: string;
     allowedIPs: string;
-    latestHandshake: number; // Unix timestamp
-    transferRx: number; // Bytes
-    transferTx: number; // Bytes
+    persistentKeepalive: string | null;
+    latestHandshake: string | number;
+    transferRx?: number;
+    transferTx?: number;
+    transfer?: string;
 }
 
 export interface Interface {
@@ -78,15 +82,18 @@ export interface ApiPeer {
     private_key: string | null;
     allowed_ips: string;
     endpoint: string | null;
+    persistent_keepalive: string | null;
 }
 
 export interface ApiPeerState {
     public_key: string;
     endpoint: string;
     allowed_ips: string;
-    latest_handshake: number;
-    transfer_rx: number;
-    transfer_tx: number;
+    persistent_keepalive: string | null;
+    latest_handshake: string | number;
+    transfer_rx?: number;
+    transfer_tx?: number;
+    transfer?: string;
 }
 
 export interface ApiInterfaceState {

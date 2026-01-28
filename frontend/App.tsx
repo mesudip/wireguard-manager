@@ -94,17 +94,43 @@ const App: React.FC = () => {
 
             const mergedPeers: Peer[] = configPeers.map(cp => {
                 const sp = statePeersMap.get(cp.publicKey);
+                
+                // Handle handshake formatting
+                let handshakeStr = 'Never';
+                if (sp) {
+                    if (typeof sp.latestHandshake === 'string') {
+                        handshakeStr = sp.latestHandshake;
+                    } else if (typeof sp.latestHandshake === 'number') {
+                        handshakeStr = formatHandshake(sp.latestHandshake);
+                    }
+                }
+
+                // Handle transfer formatting
+                let received = '';
+                let sent = '';
+                if (sp) {
+                    if (sp.transfer) {
+                        // Parse "X received, Y sent"
+                        const parts = sp.transfer.split(',');
+                        parts.forEach(p => {
+                            if (p.includes('received')) received = p.replace('received', '').trim();
+                            if (p.includes('sent')) sent = p.replace('sent', '').trim();
+                        });
+                    } else {
+                        received = typeof sp.transferRx === 'number' ? formatBytes(sp.transferRx) : '';
+                        sent = typeof sp.transferTx === 'number' ? formatBytes(sp.transferTx) : '';
+                    }
+                }
+
                 return {
                     name: cp.name,
                     publicKey: cp.publicKey,
                     privateKey: cp.privateKey,
                     allowedIPs: cp.allowedIPs,
                     endpoint: sp?.endpoint || cp.endpoint || '',
-                    latestHandshake: sp ? formatHandshake(sp.latestHandshake) : 'Never',
-                    transfer: {
-                        received: formatBytes(sp?.transferRx),
-                        sent: formatBytes(sp?.transferTx),
-                    }
+                    persistentKeepalive: sp?.persistentKeepalive || cp.persistentKeepalive || '',
+                    latestHandshake: handshakeStr,
+                    transfer: { received, sent }
                 };
             });
 
