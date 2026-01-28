@@ -6,6 +6,7 @@ from models.types import WireGuardConfig, InterfaceResponse, InterfaceDetailResp
 from services.config import parse_config, write_config
 from services.crypto import generate_keys, get_public_key
 from services.config_service import ConfigService
+from utils.lock import acquire_write_lock
 from exceptions.wireguard_exceptions import (
     InterfaceNotFoundException,
     ConfigurationException
@@ -58,38 +59,40 @@ class InterfaceService:
         validate_ip_address(address, allow_multiple=False)
         validate_port(listen_port)
         
-        interface_dir = os.path.join(self.base_dir, name)
-        
-        if os.path.exists(interface_dir):
-            raise ConfigurationException(f"Interface '{name}' already exists")
-        
-        os.makedirs(interface_dir, exist_ok=True, mode=0o750)
-        
-        # Generate keys
-        private_key, public_key, warnings = generate_keys()
-        
-        # Create interface config
-        config: WireGuardConfig = {
-            "Interface": {
-                "PrivateKey": private_key,
-                "Address": address,
-                "ListenPort": listen_port
-            },
-            "Peers": []
-        }
-        
-        # Add optional fields if provided
-        if post_up:
-            config['Interface']['PostUp'] = post_up
-        if post_down:
-            config['Interface']['PostDown'] = post_down
-        if dns:
-            config['Interface']['DNS'] = dns
-        
-        config_path = os.path.join(interface_dir, f"{name}.conf")
-        write_config(config_path, config)
-        # Sync assembled interface folder into final config
-        self._sync_interface(name)
+        manager_lock = os.path.join(self.base_dir, ".manager.lock")
+        with acquire_write_lock(manager_lock):
+            interface_dir = os.path.join(self.base_dir, name)
+            
+            if os.path.exists(interface_dir):
+                raise ConfigurationException(f"Interface '{name}' already exists")
+            
+            os.makedirs(interface_dir, exist_ok=True, mode=0o750)
+            
+            # Generate keys
+            private_key, public_key, warnings = generate_keys()
+            
+            # Create interface config
+            config: WireGuardConfig = {
+                "Interface": {
+                    "PrivateKey": private_key,
+                    "Address": address,
+                    "ListenPort": listen_port
+                },
+                "Peers": []
+            }
+            
+            # Add optional fields if provided
+            if post_up:
+                config['Interface']['PostUp'] = post_up
+            if post_down:
+                config['Interface']['PostDown'] = post_down
+            if dns:
+                config['Interface']['DNS'] = dns
+            
+            config_path = os.path.join(interface_dir, f"{name}.conf")
+            write_config(config_path, config)
+            # Sync assembled interface folder into final config
+            self._sync_interface(name)
         
         return {
             "name": name,
@@ -146,46 +149,49 @@ class InterfaceService:
         interface_dir = os.path.join(self.base_dir, name)
         config_path = os.path.join(interface_dir, f"{name}.conf")
         
-        if not os.path.exists(config_path):
-            raise InterfaceNotFoundException(name)
-        
-        config = parse_config(config_path)
-        if not config:
-            raise ConfigurationException(f"Invalid config file for interface '{name}'")
-        
-        # Update interface config
-        if address is not None:
-            config['Interface']['Address'] = address
-        if listen_port is not None:
-            config['Interface']['ListenPort'] = str(listen_port)
-        if post_up is not None:
-            if post_up:
-                config['Interface']['PostUp'] = post_up
-            elif 'PostUp' in config['Interface']:
-                del config['Interface']['PostUp']
-        if post_down is not None:
-            if post_down:
-                config['Interface']['PostDown'] = post_down
-            elif 'PostDown' in config['Interface']:
-                del config['Interface']['PostDown']
-        if dns is not None:
-            if dns:
-                config['Interface']['DNS'] = dns
-            elif 'DNS' in config['Interface']:
-                del config['Interface']['DNS']
-        
-        write_config(config_path, config)
-        # Sync assembled interface folder into final config
-        self._sync_interface(name)
+        with acquire_write_lock(config_path):
+            if not os.path.exists(config_path):
+                raise InterfaceNotFoundException(name)
+            
+            config = parse_config(config_path)
+            if not config:
+                raise ConfigurationException(f"Invalid config file for interface '{name}'")
+            
+            # Update interface config
+            if address is not None:
+                config['Interface']['Address'] = address
+            if listen_port is not None:
+                config['Interface']['ListenPort'] = str(listen_port)
+            if post_up is not None:
+                if post_up:
+                    config['Interface']['PostUp'] = post_up
+                elif 'PostUp' in config['Interface']:
+                    del config['Interface']['PostUp']
+            if post_down is not None:
+                if post_down:
+                    config['Interface']['PostDown'] = post_down
+                elif 'PostDown' in config['Interface']:
+                    del config['Interface']['PostDown']
+            if dns is not None:
+                if dns:
+                    config['Interface']['DNS'] = dns
+                elif 'DNS' in config['Interface']:
+                    del config['Interface']['DNS']
+            
+            write_config(config_path, config)
+            # Sync assembled interface folder into final config
+            self._sync_interface(name)
     
     def delete_interface(self, name: str) -> None:
         """Delete a specific interface."""
-        interface_dir = os.path.join(self.base_dir, name)
-        
-        if not os.path.exists(interface_dir):
-            raise InterfaceNotFoundException(name)
-        
-        shutil.rmtree(interface_dir)
+        manager_lock = os.path.join(self.base_dir, ".manager.lock")
+        with acquire_write_lock(manager_lock):
+            interface_dir = os.path.join(self.base_dir, name)
+            
+            if not os.path.exists(interface_dir):
+                raise InterfaceNotFoundException(name)
+            
+            shutil.rmtree(interface_dir)
     
     def get_interface_dir(self, name: str) -> str:
         """Get the directory path for an interface."""
