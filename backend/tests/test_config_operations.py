@@ -14,15 +14,16 @@ def test_config_apply_diff_reset(api_client, test_interface):
     response = api_client.get_config_diff(test_interface)
     assert response.status_code == 200
     diff = response.json()['diff']
-    # Diff should be empty because add_peer auto-syncs the folder to the conf file
-    assert diff == ''
+    # Diff should NOT be empty because we no longer auto-sync
+    assert diff != ''
+    assert public_key in diff
 
-    # 2. Sync config (generate file) - should still return success but do nothing new
+    # 2. Sync config (generate file)
     response = api_client.sync_config(test_interface)
     assert response.status_code == 200
     assert "Config synchronized successfully" in response.json()['message']
     
-    # 3. Check diff again (still empty)
+    # 3. Check diff again (now it should be empty)
     response = api_client.get_config_diff(test_interface)
     assert response.status_code == 200
     assert response.json()['diff'] == ''

@@ -91,8 +91,7 @@ class InterfaceService:
             
             config_path = os.path.join(interface_dir, f"{name}.conf")
             write_config(config_path, config)
-            # Sync assembled interface folder into final config
-            self._sync_interface(name)
+            # Auto-sync removed: changes only applied on explicit 'Apply'
         
         return {
             "name": name,
@@ -179,8 +178,7 @@ class InterfaceService:
                     del config['Interface']['DNS']
             
             write_config(config_path, config)
-            # Sync assembled interface folder into final config
-            self._sync_interface(name)
+            # Auto-sync removed: changes only applied on explicit 'Apply'
     
     def delete_interface(self, name: str) -> None:
         """Delete a specific interface."""

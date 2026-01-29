@@ -167,6 +167,7 @@ ${peer.persistentKeepalive ? `PersistentKeepalive = ${peer.persistentKeepalive}\
             ) : (
                 <PeerTable
                     peers={peers}
+                    interfaceAddress={iface.address}
                     onShare={handleShareClick}
                     onEdit={handleEditClick}
                     onDelete={handleDeletePeer}

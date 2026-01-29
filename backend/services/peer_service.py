@@ -197,8 +197,7 @@ class PeerService:
             }
             
             write_config(peer_path, peer_config)
-            # Attempt to sync the assembled interface config into the final file
-            self._sync_interface(interface)
+            # Auto-sync removed: changes only applied on explicit 'Apply'
 
         return {
             "name": name,
@@ -317,8 +316,7 @@ class PeerService:
             else:
                 write_config(peer_path, peer_config)
 
-            # Sync final interface config after update/rename
-            self._sync_interface(interface)
+            # Auto-sync removed: changes only applied on explicit 'Apply'
     
     def delete_peer(self, interface: str, peer_name: str) -> None:
         """Delete a specific peer."""
@@ -331,5 +329,4 @@ class PeerService:
                 raise FileNotFoundError("Peer not found")
             os.remove(peer_path)
 
-            # Sync final interface config after deletion
-            self._sync_interface(interface)
+            # Auto-sync removed: changes only applied on explicit 'Apply'

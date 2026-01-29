@@ -38,14 +38,6 @@ const InterfaceDetail: React.FC<InterfaceDetailProps> = ({
     const menuRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        // If the config tab is currently active but there are no longer any changes,
-        // switch to the state tab to avoid showing a blank screen.
-        if (activeTab === 'config' && (!configDiff || !configDiff.hasChanges)) {
-            setActiveTab('state');
-        }
-    }, [activeTab, configDiff]);
-
-    useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
                 setActionsMenuOpen(false);
@@ -146,20 +138,18 @@ const InterfaceDetail: React.FC<InterfaceDetailProps> = ({
                     <TabButton 
                         tabName="state" 
                         label="State" 
-                        icon={<StatusOnlineIcon className={`w-5 h-5 ${stateDiff?.hasChanges ? 'text-yellow-500 dark:text-yellow-400' : ''}`} />} 
+                        icon={<StatusOnlineIcon className={`w-5 h-5 ${stateDiff?.hasChanges ? 'text-red-500 dark:text-red-400' : ''}`} />} 
                     />
                     <TabButton 
                         tabName="peers" 
                         label={`Peers (${peers.length})`} 
                         icon={<UserGroupIcon className="w-5 h-5" />} 
                     />
-                    {configDiff && configDiff.hasChanges && (
-                        <TabButton 
-                            tabName="config" 
-                            label="Configuration" 
-                            icon={<CogIcon className={`w-5 h-5 ${configDiff.hasChanges ? 'text-yellow-500 dark:text-yellow-400' : ''}`} />} 
-                        />
-                    )}
+                    <TabButton 
+                        tabName="config" 
+                        label="Configuration" 
+                        icon={<CogIcon className={`w-5 h-5 ${configDiff?.hasChanges ? 'text-yellow-500 dark:text-yellow-400' : ''}`} />} 
+                    />
                 </div>
             </div>
             <div className="flex-1 overflow-y-auto p-6">

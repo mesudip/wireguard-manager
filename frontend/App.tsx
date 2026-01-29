@@ -97,18 +97,28 @@ const App: React.FC = () => {
                 
                 // Handle handshake formatting
                 let handshakeStr = 'Never';
+                let handshakeVal = 0;
                 if (sp) {
                     if (typeof sp.latestHandshake === 'string') {
                         handshakeStr = sp.latestHandshake;
+                        // Try to parse string if it was somehow returned as string but is numeric
+                        const parsed = parseInt(sp.latestHandshake, 10);
+                        if (!isNaN(parsed)) handshakeVal = parsed;
                     } else if (typeof sp.latestHandshake === 'number') {
                         handshakeStr = formatHandshake(sp.latestHandshake);
+                        handshakeVal = sp.latestHandshake;
                     }
                 }
 
                 // Handle transfer formatting
                 let received = '';
                 let sent = '';
+                let rxBytes = 0;
+                let txBytes = 0;
                 if (sp) {
+                    rxBytes = sp.transferRx || 0;
+                    txBytes = sp.transferTx || 0;
+
                     if (sp.transfer) {
                         // Parse "X received, Y sent"
                         const parts = sp.transfer.split(',');
@@ -130,7 +140,9 @@ const App: React.FC = () => {
                     endpoint: sp?.endpoint || cp.endpoint || '',
                     persistentKeepalive: sp?.persistentKeepalive || cp.persistentKeepalive || '',
                     latestHandshake: handshakeStr,
-                    transfer: { received, sent }
+                    latestHandshakeValue: handshakeVal,
+                    transfer: { received, sent },
+                    transferValue: { received: rxBytes, sent: txBytes }
                 };
             });
 

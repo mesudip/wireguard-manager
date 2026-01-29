@@ -2,10 +2,12 @@ import os
 import json
 import difflib
 import shutil
+import copy
 import subprocess
 from typing import List, Optional
 from models.types import WireGuardConfig, DiffResponse
 from services.config import parse_config, write_config
+from services.crypto import get_public_key
 from utils.command import run_command
 from utils.lock import acquire_write_lock
 
@@ -74,6 +76,25 @@ class ConfigService:
                 peer_config: WireGuardConfig = {"Interface": {}, "Peers": [peer]}
                 write_config(peer_path, peer_config)
     
+    def _redact_config(self, config: WireGuardConfig) -> dict:
+        """Deep copy and redact sensitive fields from config."""
+        redacted = copy.deepcopy(config)
+        if 'Interface' in redacted:
+             private_key = redacted['Interface'].get('PrivateKey')
+             if private_key:
+                 # Derive public key so change is visible in diff even when redacted
+                 try:
+                     public_key, _ = get_public_key(private_key)
+                     redacted['Interface']['PublicKey (derived)'] = public_key
+                 except Exception:
+                     pass
+                 redacted['Interface']['PrivateKey'] = '(REDACTED)'
+        
+        for peer in redacted.get('Peers', []):
+            if 'PresharedKey' in peer:
+                peer['PresharedKey'] = '(REDACTED)'
+        return redacted
+
     def get_config_diff(self, interface: str) -> str:
         """Get diff between folder structure and current conf file."""
         interface_dir = os.path.join(self.base_dir, interface)
@@ -108,9 +129,13 @@ class ConfigService:
         # Sort peers in final config as well
         final_config['Peers'].sort(key=lambda x: x.get('PublicKey', ''))
         
+        # Redact sensitive information before diffing
+        redacted_config = self._redact_config(config)
+        redacted_final = self._redact_config(final_config)
+        
         # Generate diff
-        folder_lines = json.dumps(config, indent=2, sort_keys=True).splitlines()
-        final_lines = json.dumps(final_config, indent=2, sort_keys=True).splitlines()
+        folder_lines = json.dumps(redacted_config, indent=2, sort_keys=True).splitlines()
+        final_lines = json.dumps(redacted_final, indent=2, sort_keys=True).splitlines()
         
         diff = list(difflib.unified_diff(
             final_lines, folder_lines, 

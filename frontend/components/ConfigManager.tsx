@@ -13,53 +13,53 @@ interface ConfigManagerProps {
 }
 
 const ConfigManager: React.FC<ConfigManagerProps> = ({ interface: iface, configDiff, refreshData }) => {
-    const [isSyncing, setIsSyncing] = useState(false);
-    const [isResetting, setIsResetting] = useState(false);
+    const [isApplying, setIsApplying] = useState(false);
+    const [isReverting, setIsReverting] = useState(false);
     const [notification, setNotification] = useState<{ isOpen: boolean; title: string; message: string; variant: 'success' | 'error' }>({ isOpen: false, title: '', message: '', variant: 'success' });
 
-    const handleSync = async () => {
-        setIsSyncing(true);
+    const handleApply = async () => {
+        setIsApplying(true);
         try {
-            await api.syncConfig(iface.name);
+            await api.applyConfig(iface.name);
             setNotification({
                 isOpen: true,
                 title: 'Success',
-                message: 'Configuration file replaced successfully!',
+                message: 'Configuration applied and WireGuard updated successfully!',
                 variant: 'success'
             });
             refreshData();
         } catch (error) {
             setNotification({
                 isOpen: true,
-                title: 'Sync Failed',
-                message: `Failed to replace configuration file: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                title: 'Apply Failed',
+                message: `Failed to apply configuration: ${error instanceof Error ? error.message : 'Unknown error'}`,
                 variant: 'error'
             });
         } finally {
-            setIsSyncing(false);
+            setIsApplying(false);
         }
     };
 
-    const handleReset = async () => {
-        setIsResetting(true);
+    const handleRevert = async () => {
+        setIsReverting(true);
         try {
             await api.resetConfig(iface.name);
             setNotification({
                 isOpen: true,
                 title: 'Success',
-                message: 'Folder structure updated from config file successfully!',
+                message: 'Changes reverted to current configuration file!',
                 variant: 'success'
             });
             refreshData();
         } catch (error) {
             setNotification({
                 isOpen: true,
-                title: 'Reset Failed',
-                message: `Failed to read from config file: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                title: 'Revert Failed',
+                message: `Failed to revert changes: ${error instanceof Error ? error.message : 'Unknown error'}`,
                 variant: 'error'
             });
         } finally {
-            setIsResetting(false);
+            setIsReverting(false);
         }
     };
 
@@ -76,23 +76,23 @@ const ConfigManager: React.FC<ConfigManagerProps> = ({ interface: iface, configD
 
             {configDiff && configDiff.hasChanges && (
                 <div>
-                    <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">Config file inconsistent</h3>
+                    <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4 text-yellow-600 dark:text-yellow-400">Unsaved Changes</h3>
                     <div className="bg-yellow-100/50 dark:bg-yellow-900/20 border border-yellow-400/30 dark:border-yellow-500/30 text-yellow-800 dark:text-yellow-300 p-4 rounded-lg">
                         <div className="flex items-start">
                             <ExclamationIcon className="w-5 h-5 mr-3 mt-1 flex-shrink-0" />
-                            <div>
-                                <h4 className="font-bold">Pending Changes</h4>
+                            <div className="flex-1">
+                                <h4 className="font-bold">Pending Changes Detected</h4>
                                 <p className="text-sm text-yellow-700 dark:text-yellow-400 mb-4">
-                                    The folder structure has changes that are not present in the main configuration file.
+                                    The peer configuration or interface settings have been modified. These changes won't take effect until applied.
                                 </p>
                                 <div className="flex space-x-4">
-                                    <button onClick={handleSync} disabled={isSyncing || isResetting} className="flex items-center bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <button onClick={handleApply} disabled={isApplying || isReverting} className="flex items-center bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
                                         <UploadIcon className="w-5 h-5 mr-2" />
-                                        {isSyncing ? 'Replacing...' : 'Replace config file'}
+                                        {isApplying ? 'Applying...' : 'Apply Configuration'}
                                     </button>
-                                    <button onClick={handleReset} disabled={isResetting || isSyncing} className="flex items-center bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <button onClick={handleRevert} disabled={isReverting || isApplying} className="flex items-center bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
                                         <DownloadIcon className="w-5 h-5 mr-2" />
-                                        {isResetting ? 'Reading...' : 'Read from config file'}
+                                        {isReverting ? 'Reverting...' : 'Revert Changes'}
                                     </button>
                                 </div>
                             </div>

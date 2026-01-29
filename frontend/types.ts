@@ -8,9 +8,14 @@ export interface Peer {
     endpoint: string;
     persistentKeepalive: string;
     latestHandshake: string; // Formatted string
+    latestHandshakeValue: number; // For sorting (epoch timestamp)
     transfer: {
         received: string; // Formatted string
         sent: string; // Formatted string
+    };
+    transferValue: {
+        received: number; // For sorting
+        sent: number;    // For sorting
     };
 }
 
