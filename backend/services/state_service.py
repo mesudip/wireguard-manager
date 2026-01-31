@@ -47,6 +47,11 @@ class StateService:
                                 current_peer[key] = int(value.strip())
                             except (ValueError, TypeError):
                                 current_peer[key] = 0
+                        # Parse transfer data: "X bytes received, Y bytes sent"
+                        elif key == 'transfer':
+                            rx_bytes, tx_bytes = self._parse_transfer(value.strip())
+                            current_peer['transfer_rx'] = rx_bytes
+                            current_peer['transfer_tx'] = tx_bytes
                         else:
                             current_peer[key] = value.strip()
                     else:
@@ -104,6 +109,64 @@ class StateService:
             return None
         except Exception:
             return None
+
+    def _parse_transfer(self, transfer_str: str) -> tuple[int, int]:
+        """Parse transfer string like '15.97 MiB received, 14.75 MiB sent' into (rx_bytes, tx_bytes)."""
+        rx_bytes = 0
+        tx_bytes = 0
+        
+        # Unit conversion factors (case-insensitive)
+        unit_factors = {
+            'b': 1,
+            'kib': 1024,
+            'mib': 1024 ** 2,
+            'gib': 1024 ** 3,
+            'tib': 1024 ** 4,
+            'kb': 1000,
+            'mb': 1000 ** 2,
+            'gb': 1000 ** 3,
+            'tb': 1000 ** 4,
+        }
+        
+        try:
+            # Expected format: "15.97 MiB received, 14.75 MiB sent"
+            parts = transfer_str.split(',')
+            for part in parts:
+                part = part.strip()
+                if 'received' in part.lower():
+                    rx_bytes = self._parse_bytes_with_unit(part, unit_factors)
+                elif 'sent' in part.lower():
+                    tx_bytes = self._parse_bytes_with_unit(part, unit_factors)
+        except (ValueError, IndexError):
+            pass
+        
+        return rx_bytes, tx_bytes
+
+    def _parse_bytes_with_unit(self, value_str: str, unit_factors: dict) -> int:
+        """Parse a string like '15.97 MiB' into bytes."""
+        try:
+            # Remove 'received' or 'sent' keywords
+            value_str = value_str.replace('received', '').replace('sent', '').strip().lower()
+            
+            # Split into number and unit parts
+            parts = value_str.split()
+            if len(parts) < 1:
+                return 0
+            
+            # Get the numeric value
+            numeric_value = float(parts[0])
+            
+            # Get the unit if present
+            if len(parts) >= 2:
+                unit = parts[1].lower()
+                factor = unit_factors.get(unit, 1)
+                return int(numeric_value * factor)
+            else:
+                # If no unit, assume bytes
+                return int(numeric_value)
+        except (ValueError, IndexError):
+            return 0
+
 
     def _normalize_allowed_ips(self, allowed_ips: Optional[str]) -> Optional[str]:
         """Normalize AllowedIPs into a canonical sorted comma-separated string."""

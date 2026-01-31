@@ -117,18 +117,9 @@ const App: React.FC = () => {
                 if (sp) {
                     rxBytes = sp.transferRx || 0;
                     txBytes = sp.transferTx || 0;
-
-                    if (sp.transfer) {
-                        // Parse "X received, Y sent"
-                        const parts = sp.transfer.split(',');
-                        parts.forEach(p => {
-                            if (p.includes('received')) received = p.replace('received', '').trim();
-                            if (p.includes('sent')) sent = p.replace('sent', '').trim();
-                        });
-                    } else {
-                        received = typeof sp.transferRx === 'number' ? formatBytes(sp.transferRx) : '';
-                        sent = typeof sp.transferTx === 'number' ? formatBytes(sp.transferTx) : '';
-                    }
+                    
+                    received = rxBytes > 0 ? formatBytes(rxBytes) : '';
+                    sent = txBytes > 0 ? formatBytes(txBytes) : '';
                 }
 
                 return {

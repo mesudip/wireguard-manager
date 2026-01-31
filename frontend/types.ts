@@ -7,15 +7,15 @@ export interface Peer {
     endpoint: string;
     liveEndpoint?: string;
     persistentKeepalive: string;
-    latestHandshake: string; // Formatted string
-    latestHandshakeValue: number; // For sorting (epoch timestamp)
+    latestHandshake: string; // Formatted string (e.g., "22 hours, 32 minutes, 35 seconds")
+    latestHandshakeValue: number; // For sorting (seconds elapsed since last handshake)
     transfer: {
-        received: string; // Formatted string
-        sent: string; // Formatted string
+        received: string; // Formatted string (e.g., "15.97 MiB")
+        sent: string; // Formatted string (e.g., "14.75 MiB")
     };
     transferValue: {
-        received: number; // For sorting
-        sent: number;    // For sorting
+        received: number; // Bytes (for sorting)
+        sent: number;    // Bytes (for sorting)
     };
 }
 
