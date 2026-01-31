@@ -85,7 +85,7 @@ class PeerStateInfo(TypedDict, total=False):
     public_key: str
     endpoint: Optional[str]
     allowed_ips: Optional[str]
-    latest_handshake: Optional[str]
+    latest_handshake: Optional[int]
     transfer_rx: Optional[str]
     transfer_tx: Optional[str]
     persistent_keepalive: Optional[str]

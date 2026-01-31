@@ -97,15 +97,15 @@ const App: React.FC = () => {
                 // Handle handshake formatting
                 let handshakeStr = 'Never';
                 let handshakeVal = 0;
-                if (sp) {
-                    if (typeof sp.latestHandshake === 'string') {
-                        handshakeStr = sp.latestHandshake;
-                        // Try to parse string if it was somehow returned as string but is numeric
-                        const parsed = parseInt(sp.latestHandshake, 10);
-                        if (!isNaN(parsed)) handshakeVal = parsed;
-                    } else if (typeof sp.latestHandshake === 'number') {
-                        handshakeStr = formatHandshake(sp.latestHandshake);
-                        handshakeVal = sp.latestHandshake;
+                if (sp && sp.latestHandshake) {
+                    // latestHandshake is now a Unix timestamp (seconds since epoch)
+                    // Calculate seconds elapsed
+                    const now = Math.floor(Date.now() / 1000);
+                    const secondsElapsed = now - (sp.latestHandshake as number);
+                    
+                    if (secondsElapsed > 0) {
+                        handshakeStr = formatHandshake(secondsElapsed);
+                        handshakeVal = secondsElapsed; // Store the calculated seconds elapsed for sorting
                     }
                 }
 

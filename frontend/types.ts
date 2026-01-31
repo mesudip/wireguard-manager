@@ -35,7 +35,7 @@ export interface StatePeer {
     endpoint: string;
     allowedIPs: string;
     persistentKeepalive: string | null;
-    latestHandshake: string | number;
+    latestHandshake: number;
     transferRx?: number;
     transferTx?: number;
     transfer?: string;
@@ -95,7 +95,7 @@ export interface ApiPeerState {
     endpoint: string;
     allowed_ips: string;
     persistent_keepalive: string | null;
-    latest_handshake: string | number;
+    latest_handshake: number;
     transfer_rx?: number;
     transfer_tx?: number;
     transfer?: string;

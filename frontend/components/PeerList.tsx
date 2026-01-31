@@ -124,8 +124,10 @@ ${peer.persistentKeepalive ? `PersistentKeepalive = ${peer.persistentKeepalive}\
             ...peer,
             endpoint: peer.endpoint || '',
             persistentKeepalive: peer.persistentKeepalive || '',
-            latestHandshake: 'N/A',
-            transfer: { received: '', sent: '' }
+            latestHandshake: 'Never',
+            latestHandshakeValue: 0,
+            transfer: { received: '', sent: '' },
+            transferValue: { received: 0, sent: 0 }
         };
 
         setSharingPeer(peerForModal);

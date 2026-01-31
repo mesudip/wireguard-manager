@@ -41,7 +41,14 @@ class StateService:
                     key = key.strip()
                     if current_peer:
                         key = key.replace(' ', '_')
-                        current_peer[key] = value.strip()
+                        # Convert latest_handshake to integer
+                        if key == 'latest_handshake':
+                            try:
+                                current_peer[key] = int(value.strip())
+                            except (ValueError, TypeError):
+                                current_peer[key] = 0
+                        else:
+                            current_peer[key] = value.strip()
                     else:
                         # Interface level property
                         if key == 'public key':

@@ -14,37 +14,25 @@ export const formatBytes = (bytes: number, decimals = 2): string => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 }
 
-export const formatHandshake = (timestamp: number): string => {
-    if (!timestamp || timestamp === 0) {
+export const formatHandshake = (secondsElapsed: number): string => {
+    if (!secondsElapsed || secondsElapsed === 0) {
         return 'Never';
     }
 
-    const now = Date.now() / 1000;
-    const seconds = Math.floor(now - timestamp);
-
-    if (seconds < 5) {
+    // secondsElapsed is already the time difference in seconds
+    if (secondsElapsed < 5) {
         return "Just now";
     }
 
-    let interval = seconds / 31536000;
-    if (interval > 1) {
-        return Math.floor(interval) + " years ago";
-    }
-    interval = seconds / 2592000;
-    if (interval > 1) {
-        return Math.floor(interval) + " months ago";
-    }
-    interval = seconds / 86400;
-    if (interval > 1) {
-        return Math.floor(interval) + " days ago";
-    }
-    interval = seconds / 3600;
-    if (interval > 1) {
-        return Math.floor(interval) + " hours ago";
-    }
-    interval = seconds / 60;
-    if (interval > 1) {
-        return Math.floor(interval) + " minutes ago";
-    }
-    return Math.floor(seconds) + " seconds ago";
+    // Break down into hours, minutes, seconds
+    const hours = Math.floor(secondsElapsed / 3600);
+    const minutes = Math.floor((secondsElapsed % 3600) / 60);
+    const seconds = Math.floor(secondsElapsed % 60);
+
+    const parts: string[] = [];
+    if (hours > 0) parts.push(`${hours} hour${hours > 1 ? 's' : ''}`);
+    if (minutes > 0) parts.push(`${minutes} minute${minutes > 1 ? 's' : ''}`);
+    if (seconds > 0 || parts.length === 0) parts.push(`${seconds} second${seconds > 1 ? 's' : ''}`);
+
+    return parts.join(', ');
 }
