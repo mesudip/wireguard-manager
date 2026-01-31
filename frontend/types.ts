@@ -1,4 +1,3 @@
-
 // The rich, merged object for UI display
 export interface Peer {
     name: string;
@@ -6,6 +5,7 @@ export interface Peer {
     privateKey: string | null;
     allowedIPs: string;
     endpoint: string;
+    liveEndpoint?: string;
     persistentKeepalive: string;
     latestHandshake: string; // Formatted string
     latestHandshakeValue: number; // For sorting (epoch timestamp)

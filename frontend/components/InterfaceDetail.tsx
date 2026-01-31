@@ -12,7 +12,6 @@ interface InterfaceDetailProps {
     hostInfo: HostInfo | null;
     interfaceState: InterfaceState | null;
     configDiff: DiffResult | null;
-    stateDiff: DiffResult | null;
     isLoading: boolean;
     error: string | null;
     refreshData: () => void;
@@ -27,7 +26,6 @@ const InterfaceDetail: React.FC<InterfaceDetailProps> = ({
     hostInfo,
     interfaceState,
     configDiff,
-    stateDiff,
     isLoading,
     error,
     refreshData,
@@ -66,7 +64,7 @@ const InterfaceDetail: React.FC<InterfaceDetailProps> = ({
             case 'state':
                 return <StateView
                     interfaceState={interfaceState}
-                    stateDiff={stateDiff}
+                    peers={peers}
                     configDiff={configDiff}
                     refreshData={refreshData}
                     interfaceName={iface.name}
@@ -138,7 +136,7 @@ const InterfaceDetail: React.FC<InterfaceDetailProps> = ({
                     <TabButton 
                         tabName="state" 
                         label="State" 
-                        icon={<StatusOnlineIcon className={`w-5 h-5 ${stateDiff?.hasChanges ? 'text-red-500 dark:text-red-400' : ''}`} />} 
+                        icon={<StatusOnlineIcon className="w-5 h-5" />} 
                     />
                     <TabButton 
                         tabName="peers" 

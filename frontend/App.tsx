@@ -83,11 +83,10 @@ const App: React.FC = () => {
         setIsLoading(true);
         setError(null);
         try {
-            const [configPeers, stateData, configDiffData, stateDiffData] = await Promise.all([
+            const [configPeers, stateData, configDiffData] = await Promise.all([
                 api.getPeers(iface.name),
                 api.getInterfaceState(iface.name),
                 api.getConfigDiff(iface.name),
-                api.getStateDiff(iface.name),
             ]);
 
             const statePeersMap = new Map<string, StatePeer>(stateData.peers.map(p => [p.publicKey, p]));
@@ -137,7 +136,8 @@ const App: React.FC = () => {
                     publicKey: cp.publicKey,
                     privateKey: cp.privateKey,
                     allowedIPs: cp.allowedIPs,
-                    endpoint: sp?.endpoint || cp.endpoint || '',
+                    endpoint: cp.endpoint || '',
+                    liveEndpoint: sp?.endpoint,
                     persistentKeepalive: sp?.persistentKeepalive || cp.persistentKeepalive || '',
                     latestHandshake: handshakeStr,
                     latestHandshakeValue: handshakeVal,
@@ -149,7 +149,7 @@ const App: React.FC = () => {
             setPeers(mergedPeers);
             setInterfaceState(stateData);
             setConfigDiff(configDiffData);
-            setStateDiff(stateDiffData);
+            setStateDiff(null); // No longer fetched
         } catch (err) {
             setError(err instanceof Error ? err.message : `Failed to load data for ${iface.name}.`);
             console.error(err);
@@ -318,7 +318,6 @@ const App: React.FC = () => {
                         peers={peers}
                         interfaceState={interfaceState}
                         configDiff={configDiff}
-                        stateDiff={stateDiff}
                         isLoading={isLoading}
                         error={error}
                         refreshData={refreshData}

@@ -1,14 +1,14 @@
 
 import React, { useState } from 'react';
-import { InterfaceState, DiffResult, HostInfo } from '../types';
-import DiffViewer from './DiffViewer';
+import { InterfaceState, DiffResult, HostInfo, Peer } from '../types';
+import StateDiff from './StateDiff';
 import * as api from '../services/api';
 import { RefreshIcon, DocumentTextIcon, ExclamationIcon, WifiIcon, BeakerIcon, UploadIcon, AtSymbolIcon } from './icons/Icons';
 import { NotificationDialog } from './Dialogs';
 
 interface StateViewProps {
     interfaceState: InterfaceState | null;
-    stateDiff: DiffResult | null;
+    peers: Peer[];
     configDiff: DiffResult | null;
     interfaceName: string;
     interfaceAddress: string;
@@ -16,7 +16,7 @@ interface StateViewProps {
     hostInfo: HostInfo | null;
 }
 
-const StateView: React.FC<StateViewProps> = ({ interfaceState, stateDiff, configDiff, interfaceName, interfaceAddress, refreshData, hostInfo }) => {
+const StateView: React.FC<StateViewProps> = ({ interfaceState, peers, configDiff, interfaceName, interfaceAddress, refreshData, hostInfo }) => {
     const [isApplying, setIsApplying] = useState(false);
     const [notification, setNotification] = useState<{ isOpen: boolean; title: string; message: string; variant: 'success' | 'error' }>({ isOpen: false, title: '', message: '', variant: 'success' });
 
@@ -94,28 +94,14 @@ const StateView: React.FC<StateViewProps> = ({ interfaceState, stateDiff, config
                 <Card title="Live Peers" value={interfaceState?.peers.length || 0} icon={<WifiIcon className="w-6 h-6 text-gray-600 dark:text-cyan-400" />} />
             </div>
 
-            {stateDiff && stateDiff.hasChanges && (
-                <div>
-                    <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center">
-                        <BeakerIcon className="w-6 h-6 mr-2 text-red-500 dark:text-red-400" />
-                        Status: Out of Sync
-                    </h3>
-                    <div className="bg-red-100/30 dark:bg-red-900/10 border border-red-400/30 dark:border-red-500/30 text-red-800 dark:text-red-300 p-4 rounded-lg">
-                        <div className="flex items-start">
-                            <ExclamationIcon className="w-5 h-5 mr-3 mt-1 flex-shrink-0" />
-                            <div>
-                                <h4 className="font-bold">Configuration Sync Required</h4>
-                                <p className="text-sm text-red-700 dark:text-red-400 mb-4">The running interface state differs from the saved configuration file. Apply the configuration to restore synchronization.</p>
-                                <button onClick={handleApplyConfig} disabled={isApplying} className="flex items-center bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
-                                    <UploadIcon className="w-5 h-5 mr-2" />
-                                    {isApplying ? 'Applying...' : 'Apply Configuration'}
-                                </button>
-                            </div>
-                        </div>
-                        <DiffViewer diff={stateDiff.diff} />
-                    </div>
-                </div>
-            )}
+            <StateDiff 
+                peers={peers}
+                interfaceState={interfaceState}
+                hostInfo={hostInfo}
+                interfaceAddress={interfaceAddress}
+                onApplyConfig={handleApplyConfig}
+                isApplying={isApplying}
+            />
 
             <NotificationDialog
                 isOpen={notification.isOpen}

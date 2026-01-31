@@ -51,7 +51,14 @@ const PeerRow: React.FC<PeerRowProps> = ({ peer, onShare, onEdit, onDelete }) =>
                             {peer.name}
                         </div>
                         <div className="text-sm text-gray-500 dark:text-gray-400 font-mono">
-                            {peer.endpoint}
+                            {peer.liveEndpoint && peer.liveEndpoint !== peer.endpoint ? (
+                                <>
+                                    <div className="text-green-600 dark:text-green-400">{peer.liveEndpoint}</div>
+                                    <div className="text-gray-500 dark:text-gray-400">{peer.endpoint}</div>
+                                </>
+                            ) : (
+                                <div>{peer.endpoint}</div>
+                            )}
                             {peer.persistentKeepalive && (
                                 <span className="ml-2 text-xs text-gray-400 dark:text-gray-500" title="Persistent Keepalive">
                                     ({peer.persistentKeepalive}s)
