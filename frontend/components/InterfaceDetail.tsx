@@ -20,6 +20,28 @@ interface InterfaceDetailProps {
 
 type Tab = 'state' | 'peers' | 'config';
 
+const hasConfigChanges = (diff: ConfigDiffResult): boolean => {
+    if (!diff) return false;
+    
+    const { currentConfig, folderConfig } = diff;
+    
+    // Check if peer counts differ
+    if (currentConfig.peers.length !== folderConfig.peers.length) return true;
+    
+    // Check if any peer properties differ
+    const currentMap = new Map(currentConfig.peers.map(p => [p.publicKey, p]));
+    for (const folderPeer of folderConfig.peers) {
+        const currentPeer = currentMap.get(folderPeer.publicKey);
+        if (!currentPeer) return true;
+        
+        if (currentPeer.allowedIPs !== folderPeer.allowedIPs) return true;
+        if (currentPeer.endpoint !== folderPeer.endpoint) return true;
+        if (currentPeer.persistentKeepalive !== folderPeer.persistentKeepalive) return true;
+    }
+    
+    return false;
+};
+
 const InterfaceDetail: React.FC<InterfaceDetailProps> = ({
     interface: iface,
     peers,
@@ -146,7 +168,7 @@ const InterfaceDetail: React.FC<InterfaceDetailProps> = ({
                     <TabButton 
                         tabName="config" 
                         label="Configuration" 
-                        icon={<CogIcon className={`w-5 h-5 ${configDiff && (configDiff.currentConfig.peers.length > 0 || configDiff.folderConfig.peers.length > 0) ? 'text-yellow-500 dark:text-yellow-400' : ''}`} />} 
+                        icon={<CogIcon className={`w-5 h-5 ${configDiff && hasConfigChanges(configDiff) ? 'text-yellow-500 dark:text-yellow-400' : ''}`} />} 
                     />
                 </div>
             </div>

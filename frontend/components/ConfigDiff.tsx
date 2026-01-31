@@ -168,9 +168,9 @@ const ConfigDiff: React.FC<ConfigDiffProps> = ({ currentConfig, folderConfig }) 
                     
                     return (
                         <div key={diff.publicKey} className={idx > 0 ? 'mt-3 pt-3 border-t border-gray-300 dark:border-gray-700' : ''}>
-                            <div className="text-blue-600 dark:text-cyan-400 mb-2 text-xs">
+                            <div className="text-blue-600 dark:text-cyan-400 mb-2">
                                 <div className="flex items-center gap-2">
-                                    <span className="font-semibold">{displayName}</span>
+                                    <span className="font-bold text-base">{displayName}</span>
                                     {diff.status === 'added' && (
                                         <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-0.5 rounded text-xs font-semibold">Added</span>
                                     )}
@@ -178,7 +178,7 @@ const ConfigDiff: React.FC<ConfigDiffProps> = ({ currentConfig, folderConfig }) 
                                         <span className="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 px-2 py-0.5 rounded text-xs font-semibold">Removed</span>
                                     )}
                                 </div>
-                                <div className="text-gray-600 dark:text-gray-500">{diff.publicKey}</div>
+                                <div className="text-gray-600 dark:text-gray-500 text-xs">{diff.publicKey}</div>
                             </div>
                             {diff.changes.map(change => (
                                 <div key={change.property} className="mb-1">

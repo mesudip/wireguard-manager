@@ -17,6 +17,30 @@ const ConfigManager: React.FC<ConfigManagerProps> = ({ interface: iface, configD
     const [isReverting, setIsReverting] = useState(false);
     const [notification, setNotification] = useState<{ isOpen: boolean; title: string; message: string; variant: 'success' | 'error' }>({ isOpen: false, title: '', message: '', variant: 'success' });
 
+    // Helper to check if there are actual differences
+    const hasChanges = (diff: ConfigDiffResult | null): boolean => {
+        if (!diff) return false;
+        
+        const { currentConfig, folderConfig } = diff;
+        
+        // Check if peer counts differ
+        if (currentConfig.peers.length !== folderConfig.peers.length) return true;
+        
+        // Check if any peer properties differ
+        const currentMap = new Map(currentConfig.peers.map(p => [p.publicKey, p]));
+        for (const folderPeer of folderConfig.peers) {
+            const currentPeer = currentMap.get(folderPeer.publicKey);
+            if (!currentPeer) return true; // Peer added or public key changed
+            
+            // Compare properties
+            if (currentPeer.allowedIPs !== folderPeer.allowedIPs) return true;
+            if (currentPeer.endpoint !== folderPeer.endpoint) return true;
+            if (currentPeer.persistentKeepalive !== folderPeer.persistentKeepalive) return true;
+        }
+        
+        return false;
+    };
+
     const handleApply = async () => {
         setIsApplying(true);
         try {
@@ -74,7 +98,7 @@ const ConfigManager: React.FC<ConfigManagerProps> = ({ interface: iface, configD
                 </div>
             </div>
 
-            {configDiff && (configDiff.currentConfig.peers.length > 0 || configDiff.folderConfig.peers.length > 0) && (
+            {hasChanges(configDiff) && (
                 <div>
                     <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4 text-yellow-600 dark:text-yellow-400">Unsaved Changes</h3>
                     <div className="bg-yellow-100/50 dark:bg-yellow-900/20 border border-yellow-400/30 dark:border-yellow-500/30 text-yellow-800 dark:text-yellow-300 p-4 rounded-lg">

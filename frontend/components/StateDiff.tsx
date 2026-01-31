@@ -15,6 +15,8 @@ interface StateDiffProps {
 type PeerDiff = {
     name: string;
     publicKey: string;
+    allowedIPs: string;
+    status: 'not-live' | 'synced' | 'modified';
     isStrict: boolean;
     changes: {
         property: string;
@@ -46,23 +48,72 @@ const normalizeValue = (value: any): string => {
 const calculateDiff = (peers: Peer[], interfaceState: InterfaceState | null): PeerDiff[] => {
     if (!interfaceState) return [];
 
-    const livePeersMap = new Map(interfaceState.peers.map(p => [p.publicKey, p]));
     const diffs: PeerDiff[] = [];
+    const processedConfig = new Set<number>();
 
-    peers.forEach(configPeer => {
-        const livePeer = livePeersMap.get(configPeer.publicKey);
+    // Helper to find matching peer intelligently
+    const findMatchingLivePeer = (configPeer: Peer, livePeers: any[]) => {
+        // First try exact public key match
+        let match = livePeers.find(p => p.publicKey === configPeer.publicKey);
+        if (match) return match;
+        
+        // Then try name match (excluding auto-generated names)
+        if (configPeer.name && !/^peer\d+$/.test(configPeer.name)) {
+            // Can't match by name in live state, so skip this
+        }
+        
+        // Finally try allowed IPs match
+        const normalizedIPs = normalizeAllowedIPs(configPeer.allowedIPs);
+        if (normalizedIPs) {
+            match = livePeers.find(p => normalizeAllowedIPs(p.allowedIPs) === normalizedIPs);
+            if (match) return match;
+        }
+        
+        return null;
+    };
+
+    peers.forEach((configPeer, configIdx) => {
+        const livePeer = findMatchingLivePeer(configPeer, interfaceState.peers);
         const peerChanges: PeerDiff['changes'] = [];
         let hasStrictChanges = false;
 
         if (!livePeer) {
-            peerChanges.push({ property: 'Status', configValue: 'Configured', liveValue: 'Not Live' });
-            hasStrictChanges = true;
+            // Peer is configured but not live - collect only set fields
+            const notLiveChanges: PeerDiff['changes'] = [];
+            
+            if (configPeer.allowedIPs) {
+                notLiveChanges.push({ property: 'Allowed IPs', configValue: configPeer.allowedIPs, liveValue: null });
+            }
+            if (configPeer.endpoint) {
+                notLiveChanges.push({ property: 'Endpoint', configValue: configPeer.endpoint, liveValue: null });
+            }
+            if (configPeer.persistentKeepalive) {
+                notLiveChanges.push({ property: 'Persistent Keepalive', configValue: configPeer.persistentKeepalive, liveValue: null });
+            }
+            
+            diffs.push({
+                name: configPeer.name,
+                publicKey: configPeer.publicKey,
+                allowedIPs: configPeer.allowedIPs,
+                status: 'not-live',
+                isStrict: true,
+                changes: notLiveChanges
+            });
+            processedConfig.add(configIdx);
         } else {
+            processedConfig.add(configIdx);
+
             // Compare Allowed IPs with normalization
             const configAllowedIPs = normalizeAllowedIPs(configPeer.allowedIPs);
             const liveAllowedIPs = normalizeAllowedIPs(livePeer.allowedIPs);
             if (configAllowedIPs !== liveAllowedIPs) {
                 peerChanges.push({ property: 'Allowed IPs', configValue: configPeer.allowedIPs, liveValue: livePeer.allowedIPs });
+                hasStrictChanges = true;
+            }
+
+            // Compare Public Key if different (peer was re-keyed)
+            if (configPeer.publicKey !== livePeer.publicKey) {
+                peerChanges.push({ property: 'Public Key', configValue: configPeer.publicKey, liveValue: livePeer.publicKey });
                 hasStrictChanges = true;
             }
 
@@ -74,22 +125,24 @@ const calculateDiff = (peers: Peer[], interfaceState: InterfaceState | null): Pe
                 hasStrictChanges = true;
             }
 
-            // Compare Endpoint with normalization
+            // Compare Endpoint with normalization (non-critical)
             const configEndpoint = normalizeValue(configPeer.endpoint);
             const liveEndpoint = normalizeValue(livePeer.endpoint);
             if (configEndpoint !== liveEndpoint) {
                 peerChanges.push({ property: 'Endpoint', configValue: configPeer.endpoint, liveValue: livePeer.endpoint });
                 // Endpoint change alone is not strict
             }
-        }
 
-        if (peerChanges.length > 0) {
-            diffs.push({
-                name: configPeer.name,
-                publicKey: configPeer.publicKey,
-                isStrict: hasStrictChanges,
-                changes: peerChanges
-            });
+            if (peerChanges.length > 0) {
+                diffs.push({
+                    name: configPeer.name,
+                    publicKey: configPeer.publicKey,
+                    allowedIPs: configPeer.allowedIPs,
+                    status: 'modified',
+                    isStrict: hasStrictChanges,
+                    changes: peerChanges
+                });
+            }
         }
     });
 
@@ -144,21 +197,56 @@ const StateDiff: React.FC<StateDiffProps> = ({ peers, interfaceState, hostInfo, 
             {peerDiffs.length > 0 && (
                 <div>
                     <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3">Differences</h3>
+                    <div className="flex items-center text-xs text-gray-600 dark:text-gray-400 mb-2">
+                        <span className="text-red-600 dark:text-red-400">- config</span>
+                        <span className="ml-3 text-green-600 dark:text-green-400">+ live state</span>
+                    </div>
                     <div className="bg-gray-100 dark:bg-gray-900 rounded-lg p-4 font-mono text-sm overflow-x-auto border border-gray-300 dark:border-gray-700">
-                        {peerDiffs.map((diff, idx) => (
-                            <div key={diff.publicKey} className={idx > 0 ? 'mt-3 pt-3 border-t border-gray-300 dark:border-gray-700' : ''}>
-                                <div className="text-blue-600 dark:text-cyan-400 mb-2 text-xs">
-                                    {diff.name && <div>{diff.name}</div>}
-                                    <div className="text-gray-600 dark:text-gray-500">{diff.publicKey}</div>
-                                </div>
-                                {diff.changes.map(change => (
-                                    <div key={change.property} className="mb-1">
-                                        <div className="text-red-600 dark:text-red-400">- {change.property}: {change.configValue || '(not set)'}</div>
-                                        <div className="text-green-600 dark:text-green-400">+ {change.property}: {change.liveValue || '(not set)'}</div>
+                        {peerDiffs.map((diff, idx) => {
+                            // Don't show generated peer names like "peer1", "peer2" etc
+                            const isGeneratedName = /^peer\d+$/.test(diff.name);
+                            const displayName = isGeneratedName ? diff.allowedIPs : diff.name;
+                            
+                            return (
+                                <div key={diff.publicKey} className={idx > 0 ? 'mt-3 pt-3 border-t border-gray-300 dark:border-gray-700' : ''}>
+                                    <div className="text-blue-600 dark:text-cyan-400 mb-2">
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-bold text-base">{displayName}</span>
+                                            {diff.status === 'not-live' && (
+                                                <span className="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 px-2 py-0.5 rounded text-xs font-semibold">Not Live</span>
+                                            )}
+                                            {diff.status === 'modified' && diff.isStrict && (
+                                                <span className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-2 py-0.5 rounded text-xs font-semibold">Out of Sync</span>
+                                            )}
+                                            {diff.status === 'modified' && !diff.isStrict && (
+                                                <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded text-xs font-semibold">Minor Diff</span>
+                                            )}
+                                        </div>
+                                        <div className="text-gray-600 dark:text-gray-500 text-xs">{diff.publicKey}</div>
                                     </div>
-                                ))}
-                            </div>
-                        ))}
+                                    {diff.status === 'not-live' ? (
+                                        // For not-live peers, show values normally (not as red/green diff)
+                                        diff.changes.map(change => (
+                                            <div key={change.property} className="mb-1 text-gray-700 dark:text-gray-300">
+                                                {change.property}: {change.configValue}
+                                            </div>
+                                        ))
+                                    ) : (
+                                        // For modified peers, show as diff
+                                        diff.changes.map(change => (
+                                            <div key={change.property} className="mb-1">
+                                                {change.configValue !== null && (
+                                                    <div className="text-red-600 dark:text-red-400">- {change.property}: {change.configValue || '(not set)'}</div>
+                                                )}
+                                                {change.liveValue !== null && (
+                                                    <div className="text-green-600 dark:text-green-400">+ {change.property}: {change.liveValue || '(not set)'}</div>
+                                                )}
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
             )}
