@@ -156,9 +156,28 @@ export const getInterfaceState = async (interfaceName: string): Promise<Interfac
     return transformInterfaceState(data);
 };
 
-export const getConfigDiff = async (interfaceName: string): Promise<DiffResult> => {
-    const data: ApiConfigDiff = await apiFetch(`${API_BASE_URL}/interfaces/${interfaceName}/config/diff`);
-    return { diff: data.diff, hasChanges: !!data.diff && data.diff.trim() !== '' };
+export const getConfigDiff = async (interfaceName: string): Promise<ConfigDiffResult> => {
+    const data: ApiConfigDiffStructured = await apiFetch(`${API_BASE_URL}/interfaces/${interfaceName}/config/diff`);
+    return {
+        currentConfig: {
+            peers: data.current_config.peers.map(p => ({
+                name: p.name,
+                publicKey: p.public_key,
+                allowedIPs: p.allowed_ips,
+                endpoint: p.endpoint || null,
+                persistentKeepalive: p.persistent_keepalive || null
+            }))
+        },
+        folderConfig: {
+            peers: data.folder_config.peers.map(p => ({
+                name: p.name,
+                publicKey: p.public_key,
+                allowedIPs: p.allowed_ips,
+                endpoint: p.endpoint || null,
+                persistentKeepalive: p.persistent_keepalive || null
+            }))
+        }
+    };
 };
 
 export const getStateDiff = async (interfaceName: string): Promise<DiffResult> => {

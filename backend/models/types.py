@@ -101,6 +101,20 @@ class InterfaceState(TypedDict, total=False):
     commands: Optional[List[CommandLog]]
 
 
+class ConfigDiffPeer(TypedDict, total=False):
+    """Peer configuration for diff comparison."""
+    name: str
+    public_key: str
+    allowed_ips: str
+    endpoint: Optional[str]
+    persistent_keepalive: Optional[str]
+
+
+class ConfigDiffData(TypedDict, total=False):
+    """Configuration data for diff comparison."""
+    peers: List[ConfigDiffPeer]
+
+
 class DiffResponse(TypedDict, total=False):
     """Diff comparison result."""
     diff: str
@@ -108,6 +122,12 @@ class DiffResponse(TypedDict, total=False):
     message: Optional[str]
     warnings: Optional[str]
     commands: Optional[List[CommandLog]]
+
+
+class ConfigDiffResponse(TypedDict):
+    """Config diff with structured data for client-side comparison."""
+    current_config: ConfigDiffData
+    folder_config: ConfigDiffData
 
 
 class ErrorResponse(TypedDict, total=False):

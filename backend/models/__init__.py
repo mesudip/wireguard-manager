@@ -10,6 +10,9 @@ from .types import (
     PeerStateInfo,
     InterfaceState,
     DiffResponse,
+    ConfigDiffPeer,
+    ConfigDiffData,
+    ConfigDiffResponse,
     ErrorResponse,
     SuccessResponse,
 )
@@ -24,6 +27,9 @@ __all__ = [
     "PeerStateInfo",
     "InterfaceState",
     "DiffResponse",
+    "ConfigDiffPeer",
+    "ConfigDiffData",
+    "ConfigDiffResponse",
     "ErrorResponse",
     "SuccessResponse",
 ]

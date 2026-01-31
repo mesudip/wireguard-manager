@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Interface, Peer, InterfaceState, DiffResult, StatePeer, HostInfo } from './types';
+import { Interface, Peer, InterfaceState, DiffResult, ConfigDiffResult, StatePeer, HostInfo } from './types';
 import * as api from './services/api';
 import { formatBytes, formatHandshake } from './utils';
 import InterfaceList from './components/InterfaceList';
@@ -14,7 +14,7 @@ const App: React.FC = () => {
     const [selectedInterface, setSelectedInterface] = useState<Interface | null>(null);
     const [peers, setPeers] = useState<Peer[]>([]);
     const [interfaceState, setInterfaceState] = useState<InterfaceState | null>(null);
-    const [configDiff, setConfigDiff] = useState<DiffResult | null>(null);
+    const [configDiff, setConfigDiff] = useState<ConfigDiffResult | null>(null);
     const [stateDiff, setStateDiff] = useState<DiffResult | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);

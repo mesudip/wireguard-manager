@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Interface, Peer, InterfaceState, DiffResult, HostInfo } from '../types';
+import { Interface, Peer, InterfaceState, ConfigDiffResult, HostInfo } from '../types';
 import PeerList from './PeerList';
 import StateView from './StateView';
 import ConfigManager from './ConfigManager';
@@ -11,7 +11,7 @@ interface InterfaceDetailProps {
     peers: Peer[];
     hostInfo: HostInfo | null;
     interfaceState: InterfaceState | null;
-    configDiff: DiffResult | null;
+    configDiff: ConfigDiffResult | null;
     isLoading: boolean;
     error: string | null;
     refreshData: () => void;
@@ -146,7 +146,7 @@ const InterfaceDetail: React.FC<InterfaceDetailProps> = ({
                     <TabButton 
                         tabName="config" 
                         label="Configuration" 
-                        icon={<CogIcon className={`w-5 h-5 ${configDiff?.hasChanges ? 'text-yellow-500 dark:text-yellow-400' : ''}`} />} 
+                        icon={<CogIcon className={`w-5 h-5 ${configDiff && (configDiff.currentConfig.peers.length > 0 || configDiff.folderConfig.peers.length > 0) ? 'text-yellow-500 dark:text-yellow-400' : ''}`} />} 
                     />
                 </div>
             </div>

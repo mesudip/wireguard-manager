@@ -1,14 +1,14 @@
 
 import React, { useState } from 'react';
-import { Interface, DiffResult } from '../types';
-import DiffViewer from './DiffViewer';
+import { Interface, ConfigDiffResult } from '../types';
+import ConfigDiff from './ConfigDiff';
 import * as api from '../services/api';
 import { ExclamationIcon, UploadIcon, DownloadIcon } from './icons/Icons';
 import { ConfirmDialog, NotificationDialog } from './Dialogs';
 
 interface ConfigManagerProps {
     interface: Interface;
-    configDiff: DiffResult | null;
+    configDiff: ConfigDiffResult | null;
     refreshData: () => void;
 }
 
@@ -74,7 +74,7 @@ const ConfigManager: React.FC<ConfigManagerProps> = ({ interface: iface, configD
                 </div>
             </div>
 
-            {configDiff && configDiff.hasChanges && (
+            {configDiff && (configDiff.currentConfig.peers.length > 0 || configDiff.folderConfig.peers.length > 0) && (
                 <div>
                     <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4 text-yellow-600 dark:text-yellow-400">Unsaved Changes</h3>
                     <div className="bg-yellow-100/50 dark:bg-yellow-900/20 border border-yellow-400/30 dark:border-yellow-500/30 text-yellow-800 dark:text-yellow-300 p-4 rounded-lg">
@@ -97,7 +97,7 @@ const ConfigManager: React.FC<ConfigManagerProps> = ({ interface: iface, configD
                                 </div>
                             </div>
                         </div>
-                        <DiffViewer diff={configDiff.diff} />
+                        <ConfigDiff currentConfig={configDiff.currentConfig} folderConfig={configDiff.folderConfig} />
                     </div>
                 </div>
             )}

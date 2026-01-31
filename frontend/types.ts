@@ -60,6 +60,23 @@ export interface DiffResult {
     hasChanges: boolean;
 }
 
+export interface ConfigDiffPeer {
+    name: string;
+    publicKey: string;
+    allowedIPs: string;
+    endpoint: string | null;
+    persistentKeepalive: string | null;
+}
+
+export interface ConfigDiffData {
+    peers: ConfigDiffPeer[];
+}
+
+export interface ConfigDiffResult {
+    currentConfig: ConfigDiffData;
+    folderConfig: ConfigDiffData;
+}
+
 export interface HostInfo {
     ips: string[];
     message?: string;
@@ -110,6 +127,27 @@ export interface ApiInterfaceState {
 
 export interface ApiConfigDiff {
     diff: string;
+}
+
+export interface ApiConfigDiffStructured {
+    current_config: {
+        peers: Array<{
+            name: string;
+            public_key: string;
+            allowed_ips: string;
+            endpoint?: string;
+            persistent_keepalive?: string;
+        }>;
+    };
+    folder_config: {
+        peers: Array<{
+            name: string;
+            public_key: string;
+            allowed_ips: string;
+            endpoint?: string;
+            persistent_keepalive?: string;
+        }>;
+    };
 }
 
 export interface ApiStateDiff {

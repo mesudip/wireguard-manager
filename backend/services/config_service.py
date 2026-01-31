@@ -4,8 +4,8 @@ import difflib
 import shutil
 import copy
 import subprocess
-from typing import List, Optional
-from models.types import WireGuardConfig, DiffResponse
+from typing import List, Optional, Dict, Any
+from models.types import WireGuardConfig, DiffResponse, ConfigDiffResponse, ConfigDiffData, ConfigDiffPeer
 from services.config import parse_config, write_config
 from services.crypto import get_public_key
 from utils.command import run_command
@@ -38,7 +38,10 @@ class ConfigService:
                     peer_path = os.path.join(interface_dir, file)
                     peer_config = parse_config(peer_path)
                     if peer_config and peer_config.get('Peers'):
-                        config['Peers'].extend(peer_config['Peers'])
+                        # Remove _name field before adding to final config
+                        for peer in peer_config['Peers']:
+                            peer_data = {k: v for k, v in peer.items() if k != '_name'}
+                            config['Peers'].append(peer_data)
             
             # Write final config
             write_config(final_config_path, config)
@@ -71,10 +74,13 @@ class ConfigService:
             
             # Write individual peer configs
             for idx, peer in enumerate(config.get('Peers', [])):
-                peer_name = f"peer{idx + 1}"
+                # Try to get peer name from comment in config, otherwise generate
+                peer_name = peer.get('_name') or f"peer{idx + 1}"
                 peer_path = os.path.join(interface_dir, f"{peer_name}.conf")
-                peer_config: WireGuardConfig = {"Interface": {}, "Peers": [peer]}
-                write_config(peer_path, peer_config)
+                # Remove _name from peer data before writing
+                peer_data = {k: v for k, v in peer.items() if k != '_name'}
+                peer_config: WireGuardConfig = {"Interface": {}, "Peers": [peer_data]}
+                write_config(peer_path, peer_config, peer_name=peer_name)
     
     def _redact_config(self, config: WireGuardConfig) -> dict:
         """Deep copy and redact sensitive fields from config."""
@@ -95,8 +101,8 @@ class ConfigService:
                 peer['PresharedKey'] = '(REDACTED)'
         return redacted
 
-    def get_config_diff(self, interface: str) -> str:
-        """Get diff between folder structure and current conf file."""
+    def get_config_diff(self, interface: str) -> ConfigDiffResponse:
+        """Get structured config diff between folder structure and current conf file."""
         interface_dir = os.path.join(self.base_dir, interface)
         interface_config_path = os.path.join(interface_dir, f"{interface}.conf")
         final_config_path = os.path.join(self.base_dir, f"{interface}.conf")
@@ -104,47 +110,56 @@ class ConfigService:
         if not os.path.exists(interface_config_path):
             raise FileNotFoundError("Interface not found")
         
-        # Build config from folder
-        config = parse_config(interface_config_path)
-        if not config:
-            raise ValueError("Invalid interface config")
-        
-        for file in os.listdir(interface_dir):
+        # Build config from folder with peer names
+        folder_peers: List[ConfigDiffPeer] = []
+        for file in sorted(os.listdir(interface_dir)):
             if file.endswith('.conf') and file != f"{interface}.conf":
+                peer_name = file[:-5]  # Remove .conf extension
                 peer_path = os.path.join(interface_dir, file)
                 peer_config = parse_config(peer_path)
                 if peer_config and peer_config.get('Peers'):
-                    config['Peers'].extend(peer_config['Peers'])
+                    for peer in peer_config['Peers']:
+                        # Use name from comment if available, otherwise use filename
+                        name = peer.get('_name') or peer_name
+                        folder_peers.append({
+                            'name': name,
+                            'public_key': peer.get('PublicKey', ''),
+                            'allowed_ips': peer.get('AllowedIPs', ''),
+                            'endpoint': peer.get('Endpoint'),
+                            'persistent_keepalive': peer.get('PersistentKeepalive')
+                        })
         
-        # Sort peers by PublicKey for consistent diff output
-        config['Peers'].sort(key=lambda x: x.get('PublicKey', ''))
-        
-        # Get final config if exists
-        final_config: WireGuardConfig = {"Interface": {}, "Peers": []}
+        # Get final config peers
+        current_peers: List[ConfigDiffPeer] = []
         if os.path.exists(final_config_path):
-            parsed = parse_config(final_config_path)
-            if parsed:
-                final_config = parsed
+            final_config = parse_config(final_config_path)
+            if final_config and final_config.get('Peers'):
+                for idx, peer in enumerate(final_config['Peers']):
+                    # Try to match with folder peer to get name
+                    peer_name = peer.get('_name') or f"peer{idx + 1}"
+                    public_key = peer.get('PublicKey', '')
+                    allowed_ips = peer.get('AllowedIPs', '')
+                    
+                    # Try to find matching peer in folder by name or allowed IPs
+                    for folder_peer in folder_peers:
+                        if (folder_peer['public_key'] == public_key or
+                            folder_peer['name'] == peer_name or
+                            folder_peer['allowed_ips'] == allowed_ips):
+                            peer_name = folder_peer['name']
+                            break
+                    
+                    current_peers.append({
+                        'name': peer_name,
+                        'public_key': public_key,
+                        'allowed_ips': allowed_ips,
+                        'endpoint': peer.get('Endpoint'),
+                        'persistent_keepalive': peer.get('PersistentKeepalive')
+                    })
         
-        # Sort peers in final config as well
-        final_config['Peers'].sort(key=lambda x: x.get('PublicKey', ''))
-        
-        # Redact sensitive information before diffing
-        redacted_config = self._redact_config(config)
-        redacted_final = self._redact_config(final_config)
-        
-        # Generate diff
-        folder_lines = json.dumps(redacted_config, indent=2, sort_keys=True).splitlines()
-        final_lines = json.dumps(redacted_final, indent=2, sort_keys=True).splitlines()
-        
-        diff = list(difflib.unified_diff(
-            final_lines, folder_lines, 
-            lineterm='', 
-            fromfile='current.conf',
-            tofile='folder'
-        ))
-        
-        return '\n'.join(diff)
+        return {
+            'current_config': {'peers': current_peers},
+            'folder_config': {'peers': folder_peers}
+        }
 
     def apply_config(self, interface: str) -> Optional[str]:
         """Apply the final config file to the running interface."""

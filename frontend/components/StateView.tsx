@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { InterfaceState, DiffResult, HostInfo, Peer } from '../types';
+import { InterfaceState, DiffResult, ConfigDiffResult, HostInfo, Peer } from '../types';
 import StateDiff from './StateDiff';
 import * as api from '../services/api';
 import { RefreshIcon, DocumentTextIcon, ExclamationIcon, WifiIcon, BeakerIcon, UploadIcon, AtSymbolIcon } from './icons/Icons';
@@ -9,7 +9,7 @@ import { NotificationDialog } from './Dialogs';
 interface StateViewProps {
     interfaceState: InterfaceState | null;
     peers: Peer[];
-    configDiff: DiffResult | null;
+    configDiff: ConfigDiffResult | null;
     interfaceName: string;
     interfaceAddress: string;
     refreshData: () => void;

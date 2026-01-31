@@ -126,12 +126,12 @@ def create_config_routes(config_service: ConfigService):
     
     @config_bp.route('/interfaces/<interface>/config/diff', methods=['GET'])
     def get_config_diff(interface):
-        """Get diff between folder structure and current conf file.
+        """Get structured config diff between folder structure and current conf file.
         ---
         get:
           tags: ["Config"]
           summary: Get config diff
-          description: Get diff between folder structure and current conf file
+          description: Get structured diff between folder structure and current conf file
           parameters:
             - name: interface
               in: path
@@ -139,13 +139,38 @@ def create_config_routes(config_service: ConfigService):
               schema: {"type": "string"}
           responses:
             200:
-              description: Config diff
+              description: Config diff with structured data
               content:
                 application/json:
                   schema:
                     type: object
                     properties:
-                      diff: {"type": "string"}
+                      current_config:
+                        type: object
+                        properties:
+                          peers:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                name: {"type": "string"}
+                                public_key: {"type": "string"}
+                                allowed_ips: {"type": "string"}
+                                endpoint: {"type": "string"}
+                                persistent_keepalive: {"type": "string"}
+                      folder_config:
+                        type: object
+                        properties:
+                          peers:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                name: {"type": "string"}
+                                public_key: {"type": "string"}
+                                allowed_ips: {"type": "string"}
+                                endpoint: {"type": "string"}
+                                persistent_keepalive: {"type": "string"}
             404:
               description: Interface not found
               content:
@@ -153,8 +178,8 @@ def create_config_routes(config_service: ConfigService):
                   schema: {"$ref": "#/components/schemas/Error"}
         """
         try:
-            diff = config_service.get_config_diff(interface)
-            return jsonify({"diff": diff})
+            diff_data = config_service.get_config_diff(interface)
+            return jsonify(diff_data)
         except FileNotFoundError as e:
             return jsonify({"error": str(e)}), 404
         except ValueError as e:
