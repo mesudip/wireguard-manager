@@ -48,6 +48,9 @@ const transformInterface = (apiIface: ApiInterface): Interface => ({
     publicKey: apiIface.public_key,
     address: apiIface.address,
     listenPort: parseInt(apiIface.listen_port as any, 10),
+    postUp: apiIface.post_up || null,
+    postDown: apiIface.post_down || null,
+    dns: apiIface.dns || null,
 });
 
 const transformConfigPeer = (apiPeer: ApiPeer): ConfigPeer => ({

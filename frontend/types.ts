@@ -46,6 +46,9 @@ export interface Interface {
     publicKey: string;
     address: string;
     listenPort: number;
+    postUp?: string | null;
+    postDown?: string | null;
+    dns?: string | null;
 }
 
 export interface InterfaceState {
@@ -91,6 +94,9 @@ export interface ApiInterface {
     public_key: string;
     address: string;
     listen_port: number;
+    post_up?: string | null;
+    post_down?: string | null;
+    dns?: string | null;
 }
 
 export interface ApiInterfaceListResponse {

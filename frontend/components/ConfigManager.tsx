@@ -95,6 +95,9 @@ const ConfigManager: React.FC<ConfigManagerProps> = ({ interface: iface, configD
                     <p><strong className="text-gray-500 dark:text-gray-400 w-36 inline-block">Interface Address:</strong> <span className="font-mono">{iface.address}</span></p>
                     <p><strong className="text-gray-500 dark:text-gray-400 w-36 inline-block">Listen Port:</strong> <span className="font-mono">{iface.listenPort}</span></p>
                     <p><strong className="text-gray-500 dark:text-gray-400 w-36 inline-block">Public Key:</strong> <span className="font-mono break-all">{iface.publicKey}</span></p>
+                    {iface.dns && <p><strong className="text-gray-500 dark:text-gray-400 w-36 inline-block">DNS:</strong> <span className="font-mono">{iface.dns}</span></p>}
+                    {iface.postUp && <p><strong className="text-gray-500 dark:text-gray-400 w-36 inline-block">PostUp:</strong> <span className="font-mono text-xs">{iface.postUp}</span></p>}
+                    {iface.postDown && <p><strong className="text-gray-500 dark:text-gray-400 w-36 inline-block">PostDown:</strong> <span className="font-mono text-xs">{iface.postDown}</span></p>}
                 </div>
             </div>
 
