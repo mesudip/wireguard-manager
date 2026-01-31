@@ -13,8 +13,41 @@ from api_client import APIClient
 IMAGE_NAME_STANDARD = "wireguard-backend-standard"
 IMAGE_NAME_SYSTEMD = "wireguard-backend-systemd"
 
+# Pytest hook to show response body on assertion failures
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    """Hook to add response body to assertion error messages."""
+    outcome = yield
+    report = outcome.get_result()
+    
+    if report.when == "call" and report.failed:
+        # Check if there are any local variables that are Response objects
+        if hasattr(call, 'excinfo') and call.excinfo:
+            try:
+                # Get the local variables from the traceback
+                tb = call.excinfo.traceback[-1]
+                for var_name, var_value in tb.locals.items():
+                    if isinstance(var_value, requests.Response):
+                        # Add response details to the report
+                        extra_info = f"\n\n{var_name} details:\n"
+                        extra_info += f"  Status: {var_value.status_code}\n"
+                        extra_info += f"  URL: {var_value.url}\n"
+                        try:
+                            extra_info += f"  Body: {var_value.text}\n"
+                        except:
+                            extra_info += f"  Body: <could not decode>\n"
+                        
+                        if not hasattr(report.longrepr, 'reprcrash'):
+                            continue
+                        # Append to the failure message
+                        if hasattr(report.longrepr, 'reprtraceback'):
+                            report.longrepr.reprtraceback.reprentries[-1].lines.append(extra_info)
+            except Exception:
+                pass  # Don't fail the test if we can't add extra info
+
 def pytest_addoption(parser):
     parser.addoption("--host", action="store_true", help="Run tests against host backend")
+
 
 def get_docker_host():
     docker_host_env = os.environ.get('DOCKER_HOST')
@@ -289,3 +322,8 @@ def test_interface(api_client):
     
     # Cleanup
     api_client.delete_interface(name)
+
+@pytest.fixture
+def base_dir():
+    """Fixture to provide the WireGuard base directory for file-based tests."""
+    return "/etc/wireguard"

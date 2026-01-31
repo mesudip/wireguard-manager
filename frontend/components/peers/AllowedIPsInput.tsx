@@ -8,7 +8,17 @@ const parseAndAddIPs = (value: string, setList: React.Dispatch<React.SetStateAct
         .map(ip => ip.trim())
         .filter(ip => ip.length > 0);
     if (newIPs.length > 0) {
-        setList(prevList => [...new Set([...prevList, ...newIPs])]);
+        setList(prevList => {
+            const seenIPs = new Set(prevList);
+            const result = [...prevList];
+            for (const ip of newIPs) {
+                if (!seenIPs.has(ip)) {
+                    result.push(ip);
+                    seenIPs.add(ip);
+                }
+            }
+            return result;
+        });
     }
 };
 

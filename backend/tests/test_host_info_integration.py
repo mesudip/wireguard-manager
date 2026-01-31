@@ -12,7 +12,7 @@ def test_list_interfaces_structure(api_client):
 
 def test_host_info_manual_override(api_client):
     """Test manual host info update and that it sets the manual flag."""
-    custom_ips = sorted(["1.2.3.4", "5.6.7.8"])
+    custom_ips = ["1.2.3.4", "5.6.7.8"]
     response = api_client.update_host_info(ips=custom_ips)
     assert response.status_code == 200
     data = response.json()

@@ -43,7 +43,18 @@ const EditPeerModal: React.FC<EditPeerModalProps> = ({ isOpen, onClose, peer, on
         if (!peer) return;
         setError(null);
 
-        const finalIPs = [...new Set([...allowedIPs, ...allowedIPsInput.split(/[\s,]+/).map(ip => ip.trim()).filter(Boolean)])];
+        // Combine allowedIPs and new input, preserving order while deduplicating
+        const newIPsFromInput = allowedIPsInput.split(/[\s,]+/).map(ip => ip.trim()).filter(Boolean);
+        const seenIPs = new Set<string>();
+        const finalIPs: string[] = [];
+        
+        for (const ip of [...allowedIPs, ...newIPsFromInput]) {
+            if (!seenIPs.has(ip)) {
+                finalIPs.push(ip);
+                seenIPs.add(ip);
+            }
+        }
+
         if (finalIPs.length === 0) {
             setError('At least one Allowed IP is required.');
             return;

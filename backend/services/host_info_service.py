@@ -109,8 +109,15 @@ class HostInfoService:
             if ipv4: ips.append(ipv4)
             if ipv6: ips.append(ipv6)
             
-        # Final deduplication and cleaning
-        ips = sorted(list(set(ip.strip() for ip in ips if ip)))
+        # Final deduplication and cleaning, preserve order
+        seen = set()
+        cleaned_ips = []
+        for ip in ips:
+            ip = ip.strip()
+            if ip and ip not in seen:
+                cleaned_ips.append(ip)
+                seen.add(ip)
+        ips = cleaned_ips
             
         if ips:
             host_info = {
@@ -130,12 +137,18 @@ class HostInfoService:
         return existing_info if existing_info else {"error": "Could not determine host IP addresses", "ips": []}
 
     def save_host_info(self, ips: List[str], manual: bool = True) -> Dict[str, Any]:
-        """Manually update and save host info."""
-        # Clean and deduplicate
-        ips = sorted(list(set(ip.strip() for ip in ips if ip)))
+        """Manually update and save host info. Preserves the order of IPs provided by user."""
+        # Clean and deduplicate while preserving order
+        seen = set()
+        cleaned_ips = []
+        for ip in ips:
+            ip = ip.strip()
+            if ip and ip not in seen:
+                cleaned_ips.append(ip)
+                seen.add(ip)
         
         host_info = {
-            "ips": ips,
+            "ips": cleaned_ips,
             "manual": manual,
             "updated_at": socket.gethostname()
         }
@@ -145,7 +158,7 @@ class HostInfoService:
                 json.dump(host_info, f)
             return host_info
         except Exception as e:
-            return {"error": f"Failed to save host info: {str(e)}", "ips": ips}
+            return {"error": f"Failed to save host info: {str(e)}", "ips": cleaned_ips}
 
     def get_host_info(self) -> Dict[str, Any]:
         """Retrieve host info from cache or error if not found."""
