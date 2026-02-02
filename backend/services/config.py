@@ -100,9 +100,10 @@ def write_config(config_path: str, config_data: WireGuardConfig, peer_name: Opti
     # We use os.open and os.fdopen to set permissions at creation time or chmod after
     # But for simplicity and cross-platform (where supported), we'll write then chmod
     with open(config_path, 'w') as f:
-        f.write('[Interface]\n')
-        for key, value in config_data.get('Interface', {}).items():
-            f.write(f'{key} = {value}\n')
+        if config_data.get('Interface'):
+            f.write('[Interface]\n')
+            for key, value in config_data.get('Interface', {}).items():
+                f.write(f'{key} = {value}\n')
         
         for idx, peer in enumerate(config_data.get('Peers', [])):
             # Add peer name as comment if provided (for single peer files)
