@@ -3,6 +3,8 @@ import json
 import subprocess
 import difflib
 import ipaddress
+import re
+import time
 from typing import List, Dict, Any, Optional
 from models.types import InterfaceState, PeerStateInfo, WireGuardConfig
 from services.config import parse_config
@@ -41,12 +43,8 @@ class StateService:
                     key = key.strip()
                     if current_peer:
                         key = key.replace(' ', '_')
-                        # Convert latest_handshake to integer
                         if key == 'latest_handshake':
-                            try:
-                                current_peer[key] = int(value.strip())
-                            except (ValueError, TypeError):
-                                current_peer[key] = 0
+                            current_peer[key] = self._parse_handshake(value.strip())
                         # Parse transfer data: "X bytes received, Y bytes sent"
                         elif key == 'transfer':
                             rx_bytes, tx_bytes = self._parse_transfer(value.strip())
@@ -165,6 +163,43 @@ class StateService:
                 # If no unit, assume bytes
                 return int(numeric_value)
         except (ValueError, IndexError):
+            return 0
+
+    def _parse_handshake(self, handshake_str: str) -> int:
+        """Parse handshake string like '14 hours, 30 minutes, 14 seconds ago' into Unix timestamp.
+        Returns the timestamp of when the handshake occurred (not seconds elapsed).
+        """
+        try:
+            # Remove 'ago' from the end
+            handshake_str = handshake_str.replace(' ago', '').strip()
+            
+            # If it's "(none)" or empty, return 0
+            if not handshake_str or handshake_str.lower() == '(none)':
+                return 0
+            
+            # Parse the time components
+            seconds_elapsed = 0
+            
+            # Extract all time components using regex
+            # Patterns: "X day(s)", "X hour(s)", "X minute(s)", "X second(s)"
+            patterns = [
+                (r'(\d+)\s*day', 86400),
+                (r'(\d+)\s*hour', 3600),
+                (r'(\d+)\s*minute', 60),
+                (r'(\d+)\s*second', 1)
+            ]
+            
+            for pattern, multiplier in patterns:
+                match = re.search(pattern, handshake_str, re.IGNORECASE)
+                if match:
+                    seconds_elapsed += int(match.group(1)) * multiplier
+            
+            # Calculate the timestamp when the handshake occurred
+            # Current time minus elapsed time
+            handshake_timestamp = int(time.time()) - seconds_elapsed
+            return handshake_timestamp
+            
+        except Exception:
             return 0
 
 
