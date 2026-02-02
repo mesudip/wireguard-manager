@@ -13,20 +13,32 @@ def test_config_apply_diff_reset(api_client, test_interface):
     
     response = api_client.get_config_diff(test_interface)
     assert response.status_code == 200
-    diff = response.json()['diff']
-    # Diff should NOT be empty because we no longer auto-sync
-    assert diff != ''
-    assert public_key in diff
+    data = response.json()
+    
+    # Diff logic: Folder has the new peer, Current (file) does not.
+    folder_peers = data['folder_config']['peers']
+    current_peers = data['current_config']['peers']
+    
+    assert len(folder_peers) == 1
+    assert folder_peers[0]['public_key'] == public_key
+    assert len(current_peers) == 0
 
     # 2. Sync config (generate file)
     response = api_client.sync_config(test_interface)
     assert response.status_code == 200
     assert "Config synchronized successfully" in response.json()['message']
     
-    # 3. Check diff again (now it should be empty)
+    # 3. Check diff again (now they should match)
     response = api_client.get_config_diff(test_interface)
     assert response.status_code == 200
-    assert response.json()['diff'] == ''
+    data = response.json()
+    
+    folder_peers = data['folder_config']['peers']
+    current_peers = data['current_config']['peers']
+    
+    assert len(folder_peers) == 1
+    assert len(current_peers) == 1
+    assert folder_peers[0]['public_key'] == current_peers[0]['public_key']
 
     # 4. Reset config
     # Since we are auto-synced, reset won't have much to do through the API,
@@ -34,8 +46,15 @@ def test_config_apply_diff_reset(api_client, test_interface):
     response = api_client.reset_config(test_interface)
     assert response.status_code == 200
     
-    diff = api_client.get_config_diff(test_interface).json()['diff']
-    assert diff == ''
+    response = api_client.get_config_diff(test_interface)
+    data = response.json()
+    
+    folder_peers = data['folder_config']['peers']
+    current_peers = data['current_config']['peers']
+    
+    assert len(folder_peers) == 1
+    assert len(current_peers) == 1
+    assert folder_peers[0]['public_key'] == current_peers[0]['public_key']
 
 def test_config_operations_non_existent_interface(api_client):
     interface = "nonexistent"

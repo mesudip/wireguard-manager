@@ -48,6 +48,19 @@ class ConfigService:
         
         return final_config_path
     
+    def _normalize_allowed_ips(self, ips: Optional[str]) -> str:
+        """Normalize AllowedIPs string for comparison (sorted, explicit CIDR, comma-separated)."""
+        if not ips:
+            return ''
+        import re
+        parts = [p for p in re.split(r'[\s,]+', ips) if p]
+        normalized_parts = []
+        for ip in parts:
+            if '/' not in ip:
+                ip = f"{ip}/128" if ':' in ip else f"{ip}/32"
+            normalized_parts.append(ip)
+        return ','.join(sorted(normalized_parts))
+
     def reset_config(self, interface: str) -> None:
         """Generate the interface folder from the final config file."""
         final_config_path = os.path.join(self.base_dir, f"{interface}.conf")
@@ -62,6 +75,35 @@ class ConfigService:
             if not config:
                 raise ValueError("Invalid config file")
             
+            # Preservation Logic: Build map of existing peers to preserve names
+            existing_peers_by_key = {} # PublicKey -> Name
+            existing_peers_by_ips = {} # NormalizedIPs -> Name
+
+            if os.path.exists(interface_dir):
+                 for file in os.listdir(interface_dir):
+                    if file.endswith('.conf') and file != f"{interface}.conf":
+                        try:
+                            peer_path = os.path.join(interface_dir, file)
+                            peer_config = parse_config(peer_path)
+                            if peer_config and peer_config.get('Peers'):
+                                # Assuming one peer per file in folder structure
+                                peer = peer_config['Peers'][0]
+                                public_key = peer.get('PublicKey')
+                                allowed_ips = peer.get('AllowedIPs')
+                                # Name is filename without extension
+                                name = file[:-5]
+                                
+                                if public_key:
+                                    existing_peers_by_key[public_key] = name
+                                
+                                if allowed_ips:
+                                    normalized = self._normalize_allowed_ips(allowed_ips)
+                                    if normalized:
+                                        existing_peers_by_ips[normalized] = name
+                        except Exception:
+                            # If a single file fails, don't break the whole reset
+                            continue
+
             # Clean and Recreate interface directory
             if os.path.exists(interface_dir):
                 shutil.rmtree(interface_dir)
@@ -74,8 +116,27 @@ class ConfigService:
             
             # Write individual peer configs
             for idx, peer in enumerate(config.get('Peers', [])):
-                # Try to get peer name from comment in config, otherwise generate
-                peer_name = peer.get('_name') or f"peer{idx + 1}"
+                public_key = peer.get('PublicKey')
+                allowed_ips = peer.get('AllowedIPs')
+                
+                # Try to get peer name from:
+                # 1. Comment in config (_name)
+                # 2. Existing folder structure (via PublicKey map)
+                # 3. Existing folder structure (via AllowedIPs map)
+                # 4. Fallback to generated name
+                peer_name = peer.get('_name') 
+                
+                if not peer_name and public_key and public_key in existing_peers_by_key:
+                    peer_name = existing_peers_by_key[public_key]
+                
+                if not peer_name and allowed_ips:
+                    normalized = self._normalize_allowed_ips(allowed_ips)
+                    if normalized and normalized in existing_peers_by_ips:
+                        peer_name = existing_peers_by_ips[normalized]
+                
+                if not peer_name:
+                    peer_name = f"peer{idx + 1}"
+                
                 peer_path = os.path.join(interface_dir, f"{peer_name}.conf")
                 # Remove _name from peer data before writing
                 peer_data = {k: v for k, v in peer.items() if k != '_name'}
@@ -142,9 +203,13 @@ class ConfigService:
                     
                     # Try to find matching peer in folder by name or allowed IPs
                     for folder_peer in folder_peers:
+                        # Normalize IPs for comparison
+                        norm_current = self._normalize_allowed_ips(allowed_ips)
+                        norm_folder = self._normalize_allowed_ips(folder_peer['allowed_ips'])
+                        
                         if (folder_peer['public_key'] == public_key or
                             folder_peer['name'] == peer_name or
-                            folder_peer['allowed_ips'] == allowed_ips):
+                            (norm_current and norm_folder and norm_current == norm_folder)):
                             peer_name = folder_peer['name']
                             break
                     

@@ -24,11 +24,23 @@ def test_private_key_redaction_in_diff(api_client, test_interface):
         # 3. Get the config diff
         diff_response = api_client.get_config_diff(test_interface)
         assert diff_response.status_code == 200, f"Failed to get config diff: {diff_response.status_code} - {diff_response.text}"
-        diff = diff_response.json()['diff']
+        data = diff_response.json()
         
-        # 4. Assert that actual private keys are NOT in the diff output
-        # Private keys are base64 encoded strings, typically 44 characters
-        assert private_key not in diff, "Private key should be redacted in diff output"
+        # 4. Assert that private keys are NOT in the structured diff output
+        # Verify folder config peers
+        for peer in data['folder_config']['peers']:
+            assert "private_key" not in peer
+            assert "PrivateKey" not in peer
+            # Also check values just in case
+            for val in peer.values():
+                assert val != private_key
+                
+        # Verify current config peers (should be empty initially, but logic applies)
+        for peer in data['current_config']['peers']:
+            assert "private_key" not in peer
+            assert "PrivateKey" not in peer
+            for val in peer.values():
+                assert val != private_key
         
         # 5. Get the interface details which should have the interface private key
         interface_response = api_client.get_interface(test_interface)
