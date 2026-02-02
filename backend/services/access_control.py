@@ -40,9 +40,19 @@ class AccessControl:
             ip = ipaddress.ip_address(ip_str)
         except ValueError:
             return False
+        
+        # Check original IP
         for n in nets:
             if ip in n:
                 return True
+        
+        # Check IPv4-mapped IPv6 address (e.g. ::ffff:192.168.1.1)
+        if ip.version == 6 and ip.ipv4_mapped:
+            mapped = ip.ipv4_mapped
+            for n in nets:
+                if mapped in n:
+                    return True
+
         return False
 
     def is_allowed(self, request: Request) -> Tuple[bool, str]:
