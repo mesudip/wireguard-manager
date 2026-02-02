@@ -42,6 +42,8 @@ class HostInfo(TypedDict, total=False):
     message: Optional[str]
     error: Optional[str]
     updated_at: Optional[str]
+    templates: Optional[List[Dict[str, Any]]]
+    default_template: Optional[str]
 
 
 class InterfaceListResponse(TypedDict):

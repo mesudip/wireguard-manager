@@ -1,7 +1,7 @@
 
 import {
     Interface, DiffResult, ConfigPeer, StatePeer, InterfaceState, HostInfo,
-    ApiInterface, ApiPeer, ApiInterfaceState, ApiConfigDiff, ApiStateDiff, ApiInterfaceListResponse
+    ApiInterface, ApiPeer, ApiInterfaceState, ApiConfigDiff, ApiStateDiff, ApiInterfaceListResponse, ApiHostInfo, Template
 } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
@@ -81,6 +81,14 @@ const transformInterfaceState = (apiState: ApiInterfaceState): InterfaceState =>
     peers: (apiState.peers || []).map(transformStatePeer),
 });
 
+const transformHostInfo = (apiHost: ApiHostInfo): HostInfo => ({
+    ips: apiHost.ips || [],
+    message: apiHost.message,
+    manual: apiHost.manual,
+    templates: apiHost.templates || [],
+    defaultTemplate: apiHost.default_template ?? null
+});
+
 
 // --- API Service Implementation ---
 
@@ -107,7 +115,7 @@ export const getInterfaces = async (): Promise<{ interfaces: Interface[], hostIn
 
     return {
         interfaces: successfulInterfaces,
-        hostInfo: response.host
+        hostInfo: transformHostInfo(response.host)
     };
 };
 
@@ -200,16 +208,18 @@ export const resetConfig = async (interfaceName: string): Promise<{ success: boo
     return apiFetch(`${API_BASE_URL}/interfaces/${interfaceName}/config/reset`, { method: 'POST' });
 };
 
-export const updateHostIPs = async (ips: string[]): Promise<HostInfo> => {
-    return apiFetch(`${API_BASE_URL}/host/info`, {
+export const updateHostIPs = async (ips: string[], templates?: Template[], defaultTemplate?: string | null): Promise<HostInfo> => {
+    const data: ApiHostInfo = await apiFetch(`${API_BASE_URL}/host/info`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ips: ips })
+        body: JSON.stringify({ ips: ips, templates: templates, default_template: defaultTemplate ?? null })
     });
+    return transformHostInfo(data);
 };
 
 export const rescanHostIPs = async (): Promise<HostInfo> => {
-    return apiFetch(`${API_BASE_URL}/host/info/rescan`, {
+    const data: ApiHostInfo = await apiFetch(`${API_BASE_URL}/host/info/rescan`, {
         method: 'POST'
     });
+    return transformHostInfo(data);
 };

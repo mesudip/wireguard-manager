@@ -84,6 +84,13 @@ export interface HostInfo {
     ips: string[];
     message?: string;
     manual?: boolean;
+    templates?: Template[];
+    defaultTemplate?: string | null;
+}
+
+export interface Template {
+    name: string;
+    content: string;
 }
 
 
@@ -100,8 +107,16 @@ export interface ApiInterface {
 }
 
 export interface ApiInterfaceListResponse {
-    host: HostInfo;
+    host: ApiHostInfo;
     wireguard: string[];
+}
+
+export interface ApiHostInfo {
+    ips: string[];
+    message?: string;
+    manual?: boolean;
+    templates?: Template[];
+    default_template?: string | null;
 }
 
 export interface ApiPeer {

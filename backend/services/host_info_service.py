@@ -123,7 +123,9 @@ class HostInfoService:
             host_info = {
                 "ips": ips,
                 "manual": False,
-                "updated_at": socket.gethostname() 
+                "updated_at": socket.gethostname(),
+                "templates": existing_info.get("templates", []),
+                "default_template": existing_info.get("default_template")
             }
             # Save to cache
             try:
@@ -134,9 +136,9 @@ class HostInfoService:
             except Exception:
                 pass # Continue to load from cache if save fails
 
-        return existing_info if existing_info else {"error": "Could not determine host IP addresses", "ips": []}
+        return existing_info if existing_info else {"error": "Could not determine host IP addresses", "ips": [], "templates": [], "default_template": None}
 
-    def save_host_info(self, ips: List[str], manual: bool = True) -> Dict[str, Any]:
+    def save_host_info(self, ips: List[str], manual: bool = True, templates: Optional[List[Dict[str, Any]]] = None, default_template: Optional[str] = None) -> Dict[str, Any]:
         """Manually update and save host info. Preserves the order of IPs provided by user."""
         # Clean and deduplicate while preserving order
         seen = set()
@@ -146,11 +148,26 @@ class HostInfoService:
             if ip and ip not in seen:
                 cleaned_ips.append(ip)
                 seen.add(ip)
+
+        existing_info = {}
+        if os.path.exists(self.cache_file):
+            try:
+                with open(self.cache_file, 'r') as f:
+                    existing_info = json.load(f)
+            except Exception:
+                pass
+
+        if templates is None:
+            templates = existing_info.get("templates", [])
+        if default_template is None:
+            default_template = existing_info.get("default_template")
         
         host_info = {
             "ips": cleaned_ips,
             "manual": manual,
-            "updated_at": socket.gethostname()
+            "updated_at": socket.gethostname(),
+            "templates": templates,
+            "default_template": default_template
         }
         try:
             os.makedirs(os.path.dirname(self.cache_file), exist_ok=True)
@@ -158,14 +175,20 @@ class HostInfoService:
                 json.dump(host_info, f)
             return host_info
         except Exception as e:
-            return {"error": f"Failed to save host info: {str(e)}", "ips": cleaned_ips}
+            return {"error": f"Failed to save host info: {str(e)}", "ips": cleaned_ips, "templates": templates, "default_template": default_template}
 
     def get_host_info(self) -> Dict[str, Any]:
         """Retrieve host info from cache or error if not found."""
         if os.path.exists(self.cache_file):
             try:
                 with open(self.cache_file, 'r') as f:
-                    return json.load(f)
+                    data = json.load(f)
+                    # Ensure templates and default_template are present
+                    if "templates" not in data:
+                        data["templates"] = []
+                    if "default_template" not in data:
+                        data["default_template"] = None
+                    return data
             except Exception:
                 pass
-        return {"error": "Host info not available. Service may need to restart.", "ips": []}
+        return {"error": "Host info not available. Service may need to restart.", "ips": [], "templates": [], "default_template": None}

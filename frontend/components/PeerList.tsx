@@ -10,7 +10,6 @@ import PeerTable from './peers/PeerTable';
 import ProModeView from './peers/ProModeView';
 
 import { PlusIcon } from './icons/Icons';
-import QRCode from 'qrcode';
 import { ConfirmDialog, NotificationDialog } from './Dialogs';
 
 
@@ -30,8 +29,6 @@ const PeerList: React.FC<PeerListProps> = ({ peers, refreshData, iface, hostInfo
     // Data states
     const [editingPeer, setEditingPeer] = useState<Peer | null>(null);
     const [sharingPeer, setSharingPeer] = useState<Peer | null>(null);
-    const [configText, setConfigText] = useState('');
-    const [qrCodeUrl, setQrCodeUrl] = useState('');
 
     const [isProMode, setIsProMode] = useState(false);
     const [needsRefreshOnModalClose, setNeedsRefreshOnModalClose] = useState(false);
@@ -88,38 +85,6 @@ const PeerList: React.FC<PeerListProps> = ({ peers, refreshData, iface, hostInfo
     };
 
     const openShareModalForPeer = async (peer: Peer | ConfigPeer) => {
-        const firstIp = hostInfo?.ips?.[0];
-        let endpoint = `YOUR_SERVER_IP:${iface.listenPort}`;
-
-        if (firstIp) {
-            const isIPv6 = firstIp.includes(':');
-            endpoint = isIPv6 ? `[${firstIp}]:${iface.listenPort}` : `${firstIp}:${iface.listenPort}`;
-        }
-
-        const peerConfig = `[Interface]
-# Name = ${peer.name}
-PrivateKey = ${peer.privateKey || 'PASTE_CLIENT_PRIVATE_KEY_HERE'}
-Address = ${peer.allowedIPs.split(',')[0]}
-DNS = 8.8.8.8
-
-[Peer]
-# ${iface.name}
-PublicKey = ${iface.publicKey}
-AllowedIPs = 0.0.0.0/0, ::/0
-Endpoint = ${endpoint}
-${peer.persistentKeepalive ? `PersistentKeepalive = ${peer.persistentKeepalive}\n` : ''}
-`;
-        setConfigText(peerConfig);
-
-        try {
-            const url = await QRCode.toDataURL(peerConfig, { width: 256, margin: 1 });
-            setQrCodeUrl(url);
-        } catch (err) {
-            console.error('Failed to generate QR code', err);
-            setQrCodeUrl('');
-        }
-
-        // Ensure the object passed to the modal is a full Peer object
         const peerForModal: Peer = 'transfer' in peer ? peer : {
             ...peer,
             endpoint: peer.endpoint || '',
@@ -197,8 +162,8 @@ ${peer.persistentKeepalive ? `PersistentKeepalive = ${peer.persistentKeepalive}\
                     isOpen={isShareModalOpen}
                     onClose={handleShareModalClose}
                     peer={sharingPeer}
-                    configText={configText}
-                    qrCodeUrl={qrCodeUrl}
+                    iface={iface}
+                    hostInfo={hostInfo}
                 />
             )}
 

@@ -35,7 +35,10 @@ def create_interface_routes(interface_service: InterfaceService, host_info_servi
         response = {
             "host": {
                 "ips": host_info.get("ips", []),
-                "message": host_info.get("message") or host_info.get("error")
+                "message": host_info.get("message") or host_info.get("error"),
+                "manual": host_info.get("manual"),
+                "templates": host_info.get("templates", []),
+                "default_template": host_info.get("default_template")
             },
             "wireguard": interfaces
         }
@@ -218,7 +221,9 @@ def create_interface_routes(interface_service: InterfaceService, host_info_servi
         """
         data = request.json
         ips = data.get('ips', [])
-        result = host_info_service.save_host_info(ips, manual=True)
+        templates = data.get('templates')
+        default_template = data.get('default_template')
+        result = host_info_service.save_host_info(ips, manual=True, templates=templates, default_template=default_template)
         return jsonify(result)
 
     @interface_bp.route('/host/info/rescan', methods=['POST'])

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Interface, Peer, InterfaceState, DiffResult, ConfigDiffResult, StatePeer, HostInfo } from './types';
+import { Interface, Peer, InterfaceState, DiffResult, ConfigDiffResult, StatePeer, HostInfo, Template } from './types';
 import * as api from './services/api';
 import { formatBytes, formatHandshake } from './utils';
 import InterfaceList from './components/InterfaceList';
@@ -26,6 +26,8 @@ const App: React.FC = () => {
 
     const [isHostEditModalOpen, setHostEditModalOpen] = useState(false);
     const [editedHostIPs, setEditedHostIPs] = useState('');
+    const [editedTemplates, setEditedTemplates] = useState<Template[]>([]);
+    const [editedDefaultTemplate, setEditedDefaultTemplate] = useState<string>('');
     const [isSavingHostIPs, setIsSavingHostIPs] = useState(false);
     const [isRescanningHostIPs, setIsRescanningHostIPs] = useState(false);
     const [hostEditError, setHostEditError] = useState<string | null>(null);
@@ -199,6 +201,8 @@ const App: React.FC = () => {
     const handleOpenHostEditModal = () => {
         if (hostInfo) {
             setEditedHostIPs(hostInfo.ips.join('\n'));
+            setEditedTemplates(hostInfo.templates || []);
+            setEditedDefaultTemplate(hostInfo.defaultTemplate || '');
             setHostEditError(null);
             setHostEditModalOpen(true);
         }
@@ -210,7 +214,7 @@ const App: React.FC = () => {
         const newIPs = editedHostIPs.split(/[\s,\n]+/).map(ip => ip.trim()).filter(Boolean);
 
         try {
-            const updatedHostInfo = await api.updateHostIPs(newIPs);
+            const updatedHostInfo = await api.updateHostIPs(newIPs, editedTemplates, editedDefaultTemplate || null);
             setHostInfo(updatedHostInfo);
             setHostEditModalOpen(false);
         } catch (err) {
@@ -229,6 +233,8 @@ const App: React.FC = () => {
             const updatedHostInfo = await api.rescanHostIPs();
             setHostInfo(updatedHostInfo);
             setEditedHostIPs(updatedHostInfo.ips.join('\n'));
+            setEditedTemplates(updatedHostInfo.templates || []);
+            setEditedDefaultTemplate(updatedHostInfo.defaultTemplate || '');
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
             setHostEditError(errorMessage);
@@ -236,6 +242,46 @@ const App: React.FC = () => {
         } finally {
             setIsRescanningHostIPs(false);
         }
+    };
+
+    const handleAddTemplate = () => {
+        const nextIndex = editedTemplates.length + 1;
+        setEditedTemplates(prev => ([...prev, { name: `Template ${nextIndex}`, content: '' }]));
+    };
+
+    const handleTemplateNameChange = (index: number, name: string) => {
+        setEditedTemplates(prev => {
+            const next = [...prev];
+            const existing = next[index];
+            if (!existing) return prev;
+            const oldName = existing.name;
+            next[index] = { ...existing, name };
+            if (editedDefaultTemplate === oldName) {
+                setEditedDefaultTemplate(name);
+            }
+            return next;
+        });
+    };
+
+    const handleTemplateContentChange = (index: number, content: string) => {
+        setEditedTemplates(prev => {
+            const next = [...prev];
+            const existing = next[index];
+            if (!existing) return prev;
+            next[index] = { ...existing, content };
+            return next;
+        });
+    };
+
+    const handleDeleteTemplate = (index: number) => {
+        setEditedTemplates(prev => {
+            const next = prev.filter((_, i) => i !== index);
+            const removed = prev[index];
+            if (removed && editedDefaultTemplate === removed.name) {
+                setEditedDefaultTemplate('');
+            }
+            return next;
+        });
     };
 
     const refreshData = () => {
@@ -390,7 +436,7 @@ const App: React.FC = () => {
                 </div>
             </Modal>
 
-            <Modal isOpen={isHostEditModalOpen} onClose={() => setHostEditModalOpen(false)} title="Edit Host IPs">
+            <Modal isOpen={isHostEditModalOpen} onClose={() => setHostEditModalOpen(false)} title="Edit Host Settings" maxWidth="max-w-6xl">
                 <div className="space-y-4">
                     <div>
                         <label htmlFor="hostIPs" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -405,6 +451,69 @@ const App: React.FC = () => {
                             className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-gray-900 dark:text-white font-mono focus:ring-gray-500 focus:border-gray-500 dark:focus:ring-cyan-500 dark:focus:border-cyan-500"
                         />
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Enter one IP address per line. These will be used as the endpoint for client configs.</p>
+                    </div>
+
+                    <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                        <div className="flex items-center justify-between mb-2">
+                            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Templates</h4>
+                            <button
+                                onClick={handleAddTemplate}
+                                className="px-3 py-1.5 rounded-md bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-xs font-semibold transition"
+                            >
+                                Add Template
+                            </button>
+                        </div>
+
+                        {editedTemplates.length === 0 ? (
+                            <p className="text-xs text-gray-500 dark:text-gray-400">No templates added. The standard config will be used for sharing.</p>
+                        ) : (
+                            <div className="space-y-3">
+                                {editedTemplates.map((template, index) => (
+                                    <div key={index} className="border border-gray-200 dark:border-gray-700 rounded-md p-3 bg-gray-50 dark:bg-gray-900/40">
+                                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                                            <input
+                                                type="text"
+                                                value={template.name}
+                                                onChange={(e) => handleTemplateNameChange(index, e.target.value)}
+                                                placeholder="Template name"
+                                                className="flex-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md px-2 py-1 text-sm text-gray-900 dark:text-white focus:ring-gray-500 focus:border-gray-500 dark:focus:ring-cyan-500 dark:focus:border-cyan-500"
+                                            />
+                                            <div className="flex items-center gap-3">
+                                                <label className="flex items-center text-xs text-gray-600 dark:text-gray-300">
+                                                    <input
+                                                        type="radio"
+                                                        name="defaultTemplate"
+                                                        className="mr-2"
+                                                        checked={editedDefaultTemplate === template.name}
+                                                        onChange={() => setEditedDefaultTemplate(template.name)}
+                                                    />
+                                                    Default
+                                                </label>
+                                                <button
+                                                    onClick={() => handleDeleteTemplate(index)}
+                                                    className="px-2 py-1 rounded-md bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-xs font-semibold hover:bg-red-200 dark:hover:bg-red-900/50"
+                                                >
+                                                    Delete
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <textarea
+                                            rows={6}
+                                            value={template.content}
+                                            onChange={(e) => handleTemplateContentChange(index, e.target.value)}
+                                            placeholder="Paste template content here"
+                                            className="mt-2 w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-gray-900 dark:text-white font-mono text-xs focus:ring-gray-500 focus:border-gray-500 dark:focus:ring-cyan-500 dark:focus:border-cyan-500"
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-2 space-y-1">
+                            <p><strong>Placeholders for templates:</strong></p>
+                            <p>Peer: {'{{PeerPrivateKey}}'}, {'{{PeerPublicKey}}'}, {'{{PeerAllowedIPs}}'}, {'{{PeerAllowedIP}}'} (IP only), {'{{PeerAllowedSubnet}}'} (CIDR only), {'{{PeerExtraIPs}}'}, {'{{PeerEndpoint}}'}, {'{{PeerPersistentKeepalive}}'}.</p>
+                            <p>Interface: {'{{InterfacePublicKey}}'}, {'{{InterfaceAddress}}'}, {'{{InterfaceListenPort}}'}, {'{{InterfaceDNS}}'}, {'{{InterfacePostUp}}'}, {'{{InterfacePostDown}}'}.</p>
+                            <p>Host: {'{{HostEndpoint}}'}, {'{{HostPrimaryIP}}'}, {'{{HostIPs}}'}, or {'{{DefaultConfig}}'} for full standard config.</p>
+                        </div>
                     </div>
 
                     {hostEditError && (
